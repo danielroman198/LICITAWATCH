@@ -1,0 +1,31 @@
+server.port: ${PORT:8080}
+spring:
+  application.name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:4173}
+            allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowedHeaders: "*"
+      routes:
+        # Las rutas /internal/** NO se exponen: solo se comunican los servicios entre sí.
+        - id: usuarios
+          uri: ${URL_USUARIOS:http://localhost:8081}
+          predicates: [ "Path=/api/auth/**,/api/usuarios/**,/api/sii/**,/api/catalogos/**,/api/admin/usuarios/**,/api/admin/estadisticas" ]
+        - id: licitaciones
+          uri: ${URL_LICITACIONES:http://localhost:8082}
+          predicates: [ "Path=/api/licitaciones/**,/api/postulaciones/**,/api/admin/licitaciones" ]
+        - id: ventas
+          uri: ${URL_VENTAS:http://localhost:8083}
+          predicates: [ "Path=/api/ventas/**,/api/admin/ventas" ]
+        - id: notificaciones
+          uri: ${URL_NOTIFICACIONES:http://localhost:8084}
+          predicates: [ "Path=/api/notificaciones/**" ]
+        - id: chat
+          uri: ${URL_CHAT:http://localhost:8085}
+          predicates: [ "Path=/api/chat/**" ]
+        - id: asistente
+          uri: ${URL_ASISTENTE:http://localhost:8086}
+          predicates: [ "Path=/api/asistente/**" ]

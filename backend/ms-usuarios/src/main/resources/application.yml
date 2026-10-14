@@ -1,0 +1,26 @@
+server.port: ${PORT:8081}
+spring:
+  application.name: ms-usuarios
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/licitawatch_usuarios}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:postgres}
+  jpa:
+    hibernate.ddl-auto: update
+    open-in-view: false
+lw:
+  jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
+  internal-key: ${INTERNAL_KEY:clave-interna-dev}
+  publicas: ${LW_PUBLICAS:/api/auth/login,/api/auth/recuperar,/api/auth/restablecer,/api/usuarios/registro,/api/usuarios/disponibilidad,/api/sii,/api/catalogos}
+  urls:
+    usuarios: ${URL_USUARIOS:http://localhost:8081}
+    licitaciones: ${URL_LICITACIONES:http://localhost:8082}
+    ventas: ${URL_VENTAS:http://localhost:8083}
+    notificaciones: ${URL_NOTIFICACIONES:http://localhost:8084}
+    chat: ${URL_CHAT:http://localhost:8085}
+  sii:
+    modo: ${SII_MODO:stub}            # stub = valida dígito verificador y devuelve datos de prueba; http = consulta servicio externo
+    url: ${SII_URL:https://www4.sii.cl/consultaestadosinsulta}
+    api-key: ${SII_API_KEY:}
+  correo.remitente: ${MAIL_FROM:no-responder@licitawatch.cl}
+  app.url: ${APP_URL:http://localhost:5173}

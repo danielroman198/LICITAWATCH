@@ -1,0 +1,26 @@
+server.port: ${PORT:8083}
+spring:
+  application.name: ms-ventas
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/licitawatch_ventas}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:postgres}
+  jpa:
+    hibernate.ddl-auto: update
+    open-in-view: false
+lw:
+  jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
+  internal-key: ${INTERNAL_KEY:clave-interna-dev}
+  publicas: ${LW_PUBLICAS:/api/ventas/planes}
+  urls:
+    usuarios: ${URL_USUARIOS:http://localhost:8081}
+    licitaciones: ${URL_LICITACIONES:http://localhost:8082}
+    ventas: ${URL_VENTAS:http://localhost:8083}
+    notificaciones: ${URL_NOTIFICACIONES:http://localhost:8084}
+    chat: ${URL_CHAT:http://localhost:8085}
+  pasarela:
+    modo: ${PASARELA_MODO:simulado}   # simulado | transbank (Webpay Plus, ambiente de integración)
+    tbk-url: ${TBK_URL:https://webpay3gint.transbank.cl}
+    tbk-commerce-code: ${TBK_COMMERCE_CODE:597055555532}
+    tbk-api-key: ${TBK_API_KEY:579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C}
+    return-url: ${TBK_RETURN_URL:http://localhost:5173/app/suscripcion}

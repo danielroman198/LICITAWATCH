@@ -1,0 +1,70 @@
+package cl.licitawatch.usuarios.bs;
+
+import cl.licitawatch.common.ApiException;
+import cl.licitawatch.common.InternalClient;
+import cl.licitawatch.common.JwtService;
+import cl.licitawatch.usuarios.bd.*;
+import cl.licitawatch.usuarios.bd.Repos.UsuarioRepo;
+import cl.licitawatch.usuarios.bff.Dto.SesionDto;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+
+@Service
+public class AuthService {
+    private final UsuarioRepo usuarios; private final PerfilService perfiles;
+    private final JwtService jwt; private final InternalClient interno;
+    private final BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
+    private final String urlNotif, appUrl;
+
+    public AuthService(UsuarioRepo usuarios, PerfilService perfiles, JwtService jwt, InternalClient interno,
+                       @Value("${lw.urls.notificaciones}") String urlNotif, @Value("${lw.app.url}") String appUrl) {
+        this.usuarios = usuarios; this.perfiles = perfiles; this.jwt = jwt; this.interno = interno; this.urlNotif = urlNotif; this.appUrl = appUrl;
+    }
+
+    public static String validarPassword(String p) {
+        if (p == null || p.length() < 8) return "La contraseña debe tener al menos 8 caracteres";
+        if (!p.matches(".*[A-Z].*")) return "La contraseña debe incluir una mayúscula";
+        if (!p.matches(".*[a-z].*")) return "La contraseña debe incluir una minúscula";
+        if (!p.matches(".*\\d.*")) return "La contraseña debe incluir un número";
+        return null;
+    }
+
+    public String hash(String password) { return enc.encode(password); }
+
+    public SesionDto login(String email, String password) {
+        Usuario u = usuarios.findByEmailIgnoreCase(email.trim()).orElseThrow(() -> ApiException.noAutorizado("Correo o contraseña incorrectos"));
+        if (!enc.matches(password, u.getPassword())) throw ApiException.noAutorizado("Correo o contraseña incorrectos");
+        if (!u.isActivo()) throw ApiException.prohibido("Tu cuenta está bloqueada. Contacta al administrador.");
+        return sesion(u, jwt.emitir(u.getId(), u.getRolNombre()));
+    }
+
+    public SesionDto me(long usuarioId, String token) {
+        Usuario u = usuarios.findById(usuarioId).orElseThrow(() -> ApiException.noAutorizado("Sesión inválida"));
+        if (!u.isActivo()) throw ApiException.prohibido("Tu cuenta está bloqueada");
+        return sesion(u, token);
+    }
+
+    public SesionDto sesion(Usuario u, String token) { return new SesionDto(token, Mapeo.usuario(u), perfiles.dto(u)); }
+
+    /** Responde siempre igual exista o no el correo (no revela qué cuentas existen). El enlace lleva un token firmado (1 h); no hay tabla de tokens en el ER. */
+    public void solicitarRecuperacion(String email) {
+        usuarios.findByEmailIgnoreCase(email.trim()).filter(Usuario::isActivo).ifPresent(u -> {
+            String enlace = appUrl + "/restablecer?token=" + jwt.emitirReset(u.getId());
+            interno.notificar(urlNotif, u.getId(), "CORREO", "Recupera tu contraseña de LicitaWatch",
+                    "Recibimos una solicitud para restablecer tu contraseña. Usa este enlace (vence en 1 hora): " + enlace, true);
+        });
+    }
+
+    @Transactional
+    public void restablecer(String token, String password) {
+        String err = validarPassword(password);
+        if (err != null) throw ApiException.invalido(err);
+        Long id = jwt.validarReset(token);
+        if (id == null) throw ApiException.invalido("El enlace de recuperación no es válido o ya venció");
+        Usuario u = usuarios.findById(id).orElseThrow(() -> ApiException.invalido("El enlace de recuperación no es válido"));
+        u.setPassword(enc.encode(password));
+    }
+}

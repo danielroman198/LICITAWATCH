@@ -81,6 +81,7 @@ export function Profile() {
               <div className="form-grid">
                 <Field label="Correo de acceso" hint="No se puede modificar"><Input icon="mail" value={u.email} disabled /></Field>
                 <Field label="RUT de empresa" hint="No se puede modificar"><Input icon="building" value={formatearRut(p.rutEmpresa)} disabled /></Field>
+                <Field label="RUT personal" hint="No se puede modificar"><Input icon="user" value={formatearRut(p.rutPersona)} disabled /></Field>
                 <Field label="Razón social" required><Input value={f.razonSocial} onChange={(e) => set('razonSocial', e.target.value)} /></Field>
                 <Field label="Giro"><Input value={f.giro ?? ''} onChange={(e) => set('giro', e.target.value)} /></Field>
                 <Field label="Rubro"><Select value={f.rubroId} onChange={(e) => set('rubroId', Number(e.target.value))}>{cat.rubros.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}</Select></Field>

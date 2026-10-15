@@ -70,6 +70,7 @@ export const httpApi: Api = {
   tamanos: () => get('/api/catalogos/tamanos'),
 
   actualizarPerfil: (d) => req('PUT', '/api/usuarios/perfil', d),
+  actualizarFoto: (foto) => (foto ? req('PUT', '/api/usuarios/foto', { foto }) : req('DELETE', '/api/usuarios/foto')),
 
   licitaciones: (f?: FiltroLicitaciones) => get('/api/licitaciones', { ...f }),
   licitacion: (id) => get(`/api/licitaciones/${id}`),

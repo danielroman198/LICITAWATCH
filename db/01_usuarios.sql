@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS usuario (                -- 1 rol -> N usuarios
   rol_id     INTEGER NOT NULL REFERENCES rol(id),
   activo     BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  foto       TEXT,                                  -- foto de perfil (data URL JPEG 256x256); NULL = se muestran las iniciales
   CONSTRAINT uq_usuario_email UNIQUE (email)
 );
 

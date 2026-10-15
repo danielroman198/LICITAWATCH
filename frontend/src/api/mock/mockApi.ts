@@ -242,6 +242,15 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
     saveDb()
     return clon(p)
   },
+  async actualizarFoto(foto) {
+    await delay()
+    const db = loadDb()
+    const u = db.usuarios.find((x) => x.id === actual(db).id)!
+    u.foto = foto
+    saveDb()
+    const { password: _p, ...usuario } = u
+    return clon(usuario)
+  },
 
   async licitaciones(f?: FiltroLicitaciones) {
     await delay()

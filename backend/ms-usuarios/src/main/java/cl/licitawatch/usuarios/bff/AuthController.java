@@ -38,6 +38,9 @@ public class AuthController {
     @GetMapping("/api/usuarios/disponibilidad/rut") public Disponible rut(@RequestParam String valor) { return new Disponible(registro.rutDisponible(valor)); }
     @GetMapping("/api/usuarios/disponibilidad/rut-persona") public Disponible rutPersona(@RequestParam String valor) { return new Disponible(registro.rutPersonaDisponible(valor)); }
 
+    @PutMapping("/api/usuarios/foto") public UsuarioDto foto(HttpServletRequest r, @Valid @RequestBody Foto b) { return auth.actualizarFoto(Auth.sesion(r).usuarioId(), b.foto()); }
+    @DeleteMapping("/api/usuarios/foto") public UsuarioDto quitarFoto(HttpServletRequest r) { return auth.actualizarFoto(Auth.sesion(r).usuarioId(), null); }
+
     @PutMapping("/api/usuarios/perfil")
     public PerfilDto perfil(HttpServletRequest r, @RequestBody PerfilEdicion b) { return registro.actualizarPerfil(Auth.sesion(r).usuarioId(), b); }
 }

@@ -10,7 +10,7 @@ import cl.licitawatch.usuarios.bff.Dto.*;
  */
 public final class Mapeo {
     private Mapeo() {}
-    public static UsuarioDto usuario(Usuario u) { return new UsuarioDto(u.getId(), u.getEmail(), u.getRolNombre(), u.isActivo(), u.getCreatedAt(), null); }
+    public static UsuarioDto usuario(Usuario u) { return new UsuarioDto(u.getId(), u.getEmail(), u.getRolNombre(), u.isActivo(), u.getCreatedAt(), null, u.getFoto()); }
 
     public static PerfilDto perfil(PerfilBase p) {
         return new PerfilDto(p.getUsuarioId(), p.getRazonSocial(), Rut.formatear(p.getRut()), p.getRutPersona() == null ? "" : Rut.formatear(p.getRutPersona()), p.getNombreContacto(), p.getEmailContacto(), p.getTelefono(),

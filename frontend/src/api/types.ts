@@ -24,6 +24,7 @@ export interface Usuario {
   activo: boolean
   createdAt: string
   ultimoLogin?: string
+  foto?: string | null   // data URL JPEG 256x256; sin foto se muestran las iniciales
 }
 
 export interface Perfil {
@@ -308,6 +309,8 @@ export interface Api {
 
   // Perfil
   actualizarPerfil(d: Partial<Perfil>): Promise<Perfil>
+  /** null quita la foto. */
+  actualizarFoto(foto: string | null): Promise<Usuario>
 
   // Licitaciones
   licitaciones(f?: FiltroLicitaciones): Promise<Licitacion[]>

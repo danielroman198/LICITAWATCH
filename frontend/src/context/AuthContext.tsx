@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api } from '../api'
-import type { Catalogo, Ciudad, Perfil, Sesion } from '../api/types'
+import type { Catalogo, Ciudad, Perfil, Sesion, Usuario } from '../api/types'
 
 interface AuthState {
   sesion: Sesion | null
@@ -9,6 +9,7 @@ interface AuthState {
   logout: () => Promise<void>
   setSesion: (s: Sesion | null) => void
   actualizarPerfil: (p: Perfil) => void
+  actualizarUsuario: (u: Usuario) => void
 }
 
 const Ctx = createContext<AuthState | null>(null)
@@ -31,8 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSesion(null)
   }, [])
   const actualizarPerfil = useCallback((p: Perfil) => setSesion((s) => (s ? { ...s, perfil: p } : s)), [])
+  const actualizarUsuario = useCallback((u: Usuario) => setSesion((s) => (s ? { ...s, usuario: u } : s)), [])
 
-  const value = useMemo(() => ({ sesion, cargando, login, logout, setSesion, actualizarPerfil }), [sesion, cargando, login, logout, actualizarPerfil])
+  const value = useMemo(() => ({ sesion, cargando, login, logout, setSesion, actualizarPerfil, actualizarUsuario }), [sesion, cargando, login, logout, actualizarPerfil, actualizarUsuario])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

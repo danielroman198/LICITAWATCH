@@ -1,21 +1,23 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api'
 import type { Perfil } from '../../api/types'
-import { Avatar, Badge, Button, Card, CardHeader, Field, Input, PageHeader, Select, Textarea, useToast } from '../../components/ui/ui'
+import { Avatar, Badge, Button, Card, CardHeader, Field, Input, Modal, PageHeader, Select, Textarea } from '../../components/ui/ui'
 import { NotifPanel } from '../../components/app/shared'
 import { useAuth, useCatalogos } from '../../context/AuthContext'
 import { Icon } from '../../lib/icons'
 import { formatearRut } from '../../lib/rut'
+import { fotoCuadrada, TIPOS_FOTO } from '../../lib/imagen'
 import { validarEmail, fechaCorta } from '../../lib/format'
 
 export function Profile() {
-  const { sesion, actualizarPerfil } = useAuth()
+  const { sesion, actualizarPerfil, actualizarUsuario } = useAuth()
   const cat = useCatalogos()
-  const toast = useToast()
   const [editando, setEditando] = useState(false)
   const [f, setF] = useState<Perfil>(sesion!.perfil)
   const [regionId, setRegionId] = useState<number>(0)
   const [guardando, setGuardando] = useState(false)
+  // Pop-up con el resultado de guardar el perfil (éxito o error).
+  const [resultado, setResultado] = useState<{ ok: boolean; mensaje: string } | null>(null)
   const { usuario: u, perfil: p } = sesion!
   const esAdmin = u.rol === 'ADMIN'
 
@@ -23,11 +25,28 @@ export function Profile() {
   const set = <K extends keyof Perfil>(k: K, v: Perfil[K]) => setF((x) => ({ ...x, [k]: v }))
   const cancelar = () => { setF(p); setEditando(false) }
   const guardar = async () => {
-    if (!f.razonSocial.trim() || !f.nombreContacto.trim()) return toast.error('Razón social y nombre de contacto son obligatorios.')
-    if (!validarEmail(f.emailContacto)) return toast.error('El correo de contacto no es válido.')
+    if (!f.razonSocial.trim() || !f.nombreContacto.trim()) return setResultado({ ok: false, mensaje: 'Razón social y nombre de contacto son obligatorios.' })
+    if (!validarEmail(f.emailContacto)) return setResultado({ ok: false, mensaje: 'El correo de contacto no es válido.' })
     setGuardando(true)
-    try { const n = await api.actualizarPerfil(f); actualizarPerfil(n); toast.ok('Perfil actualizado.'); setEditando(false) }
-    catch (e) { toast.error((e as Error).message) } finally { setGuardando(false) }
+    try {
+      const n = await api.actualizarPerfil(f); actualizarPerfil(n); setEditando(false)
+      setResultado({ ok: true, mensaje: 'Tus datos se guardaron correctamente.' })
+    } catch (e) {
+      setResultado({ ok: false, mensaje: (e as Error).message || 'Inténtalo nuevamente en unos minutos.' })
+    } finally { setGuardando(false) }
+  }
+
+  // Foto de perfil: se recorta y comprime en el navegador y se guarda al tiro (no depende de «Editar»).
+  const [subiendoFoto, setSubiendoFoto] = useState(false)
+  const cambiarFoto = async (archivo: File | null) => {
+    setSubiendoFoto(true)
+    try {
+      const foto = archivo ? await fotoCuadrada(archivo) : null
+      actualizarUsuario(await api.actualizarFoto(foto))
+      setResultado({ ok: true, mensaje: foto ? 'Tu foto de perfil se actualizó.' : 'Quitamos tu foto de perfil.' })
+    } catch (e) {
+      setResultado({ ok: false, mensaje: (e as Error).message || 'No pudimos guardar la foto. Inténtalo nuevamente.' })
+    } finally { setSubiendoFoto(false) }
   }
 
   const dato = (icon: Parameters<typeof Icon>[0]['name'], label: string, valor?: string) => (
@@ -42,7 +61,14 @@ export function Profile() {
           <Card pad={false} className="profile-card">
             <div className="profile-banner" />
             <div className="profile-head">
-              <Avatar nombre={p.razonSocial} size={84} />
+              <div className="avatar-edit">
+                <Avatar nombre={p.razonSocial} size={84} foto={u.foto} />
+                <label className={`avatar-edit-btn ${subiendoFoto ? 'cargando' : ''}`} title={u.foto ? 'Cambiar foto' : 'Subir foto'}>
+                  <Icon name="image" size={16} />
+                  <input type="file" accept={TIPOS_FOTO.join(',')} hidden disabled={subiendoFoto} onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ''; if (a) cambiarFoto(a) }} />
+                </label>
+                {u.foto && <button type="button" className="avatar-quitar" onClick={() => cambiarFoto(null)} disabled={subiendoFoto}>Quitar foto</button>}
+              </div>
               <div className="profile-id">
                 <h2>{p.razonSocial}</h2>
                 <div className="td-badges">
@@ -100,6 +126,13 @@ export function Profile() {
         </div>
         <NotifPanel limite={5} />
       </div>
+
+      <Modal abierto={!!resultado} onClose={() => setResultado(null)} titulo={resultado?.ok ? 'Perfil actualizado' : 'No se pudo guardar'} ancho={420}
+        pie={<Button variant={resultado?.ok ? 'primary' : 'outline'} onClick={() => setResultado(null)}>{resultado?.ok ? 'Aceptar' : 'Volver a intentar'}</Button>}>
+        {resultado && (resultado.ok
+          ? <div className="pay-result ok"><Icon name="checkcircle" size={56} /><h3>¡Cambio realizado con éxito!</h3><p>{resultado.mensaje}</p></div>
+          : <div className="pay-result bad"><Icon name="xcircle" size={56} /><h3>El cambio no fue exitoso</h3><p>{resultado.mensaje}</p></div>)}
+      </Modal>
     </div>
   )
 }

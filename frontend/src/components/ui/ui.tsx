@@ -122,7 +122,8 @@ export const tonoEstado = (e: string): Tono =>
   ({ Abierta: 'green', Cerrada: 'gray', Adjudicada: 'violet', Pendiente: 'amber', Aprobada: 'green', Rechazada: 'red', Activa: 'green', Vencida: 'gray', Cancelada: 'red', Aprobado: 'green', Rechazado: 'red' } as Record<string, Tono>)[e] ?? 'gray'
 
 /* ---------------- Avatar ---------------- */
-export function Avatar({ nombre, size = 40, tono }: { nombre: string; size?: number; tono?: string }) {
+export function Avatar({ nombre, size = 40, tono, foto }: { nombre: string; size?: number; tono?: string; foto?: string | null }) {
+  if (foto) return <img className="avatar avatar-foto" src={foto} alt={nombre} width={size} height={size} style={{ width: size, height: size }} />
   let h = 0
   for (const c of nombre) h = (h * 31 + c.charCodeAt(0)) % 360
   return (

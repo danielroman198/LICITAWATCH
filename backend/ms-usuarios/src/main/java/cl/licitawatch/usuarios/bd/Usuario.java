@@ -12,6 +12,7 @@ public class Usuario {
     @ManyToOne(fetch = FetchType.EAGER, optional = false) @JoinColumn(name = "rol_id", nullable = false) private Rol rol;
     @Column(nullable = false) private boolean activo = true;
     @Column(name = "created_at", nullable = false) private Instant createdAt = Instant.now();
+    @Column(columnDefinition = "TEXT") private String foto;   // foto de perfil: data URL JPEG 256x256 (null = iniciales)
 
     public Long getId() { return id; } public void setId(Long id) { this.id = id; }
     public String getEmail() { return email; } public void setEmail(String email) { this.email = email; }
@@ -20,4 +21,5 @@ public class Usuario {
     public String getRolNombre() { return rol.getNombre(); }
     public boolean isActivo() { return activo; } public void setActivo(boolean activo) { this.activo = activo; }
     public Instant getCreatedAt() { return createdAt; } public void setCreatedAt(Instant c) { this.createdAt = c; }
+    public String getFoto() { return foto; } public void setFoto(String foto) { this.foto = foto; }
 }

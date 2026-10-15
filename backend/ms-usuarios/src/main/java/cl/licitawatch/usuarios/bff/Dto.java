@@ -20,7 +20,8 @@ public final class Dto {
     public record PerfilEdicion(String razonSocial, String giro, Integer rubroId, Integer tamanoEmpresaId, Integer ciudadId, String nombreContacto,
                                 String emailContacto, String telefono, String sitioWeb, String descripcionEmpresa) {}
 
-    public record UsuarioDto(Long id, String email, String rol, boolean activo, Instant createdAt, Instant ultimoLogin) {}
+    public record UsuarioDto(Long id, String email, String rol, boolean activo, Instant createdAt, Instant ultimoLogin, String foto) {}
+    public record Foto(@NotBlank String foto) {}
     public record PerfilDto(Long usuarioId, String razonSocial, String rutEmpresa, String rutPersona, String nombreContacto, String emailContacto,
                             String telefono, Integer rubroId, Integer ciudadId, Integer tamanoEmpresaId, String descripcionEmpresa, String sitioWeb,
                             String giro, boolean siiValidado, Instant updatedAt) {}

@@ -6,6 +6,7 @@ import cl.licitawatch.common.JwtService;
 import cl.licitawatch.usuarios.bd.*;
 import cl.licitawatch.usuarios.bd.Repos.UsuarioRepo;
 import cl.licitawatch.usuarios.bff.Dto.SesionDto;
+import cl.licitawatch.usuarios.bff.Dto.UsuarioDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,19 @@ public class AuthService {
     }
 
     public SesionDto sesion(Usuario u, String token) { return new SesionDto(token, Mapeo.usuario(u), perfiles.dto(u)); }
+
+    /** Foto de perfil: el front la envía ya recortada a 256x256 en JPEG. null la quita (vuelven las iniciales). */
+    @Transactional
+    public UsuarioDto actualizarFoto(long usuarioId, String foto) {
+        Usuario u = usuarios.findById(usuarioId).orElseThrow(() -> ApiException.noEncontrado("Usuario no encontrado"));
+        if (foto != null) {
+            if (!foto.matches("^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$")) throw ApiException.invalido("La imagen no tiene un formato válido (JPG, PNG o WEBP)");
+            if (foto.length() > FOTO_MAX) throw ApiException.invalido("La imagen es demasiado grande");
+        }
+        u.setFoto(foto);
+        return Mapeo.usuario(u);
+    }
+    private static final int FOTO_MAX = 400_000;   // ~300 KB en base64; una foto de 256x256 pesa ~20-40 KB
 
     /** Responde siempre igual exista o no el correo (no revela qué cuentas existen). El enlace lleva un token firmado (1 h); no hay tabla de tokens en el ER. */
     public void solicitarRecuperacion(String email) {

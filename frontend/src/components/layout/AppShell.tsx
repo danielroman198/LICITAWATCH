@@ -110,7 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button className="icon-btn sb-close" onClick={() => setMenu(false)} aria-label="Cerrar menú"><Icon name="x" size={20} /></button>
         </div>
         <div className="sb-user">
-          <Avatar nombre={perfil.razonSocial} size={46} />
+          <Avatar nombre={perfil.razonSocial} size={46} foto={u.foto} />
           <div>
             <b title={perfil.razonSocial}>{perfil.razonSocial}</b>
             <span>{ROL_TXT[u.rol]}{u.rol === 'PYME' && premium ? ' · Premium' : ''}</span>
@@ -186,7 +186,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
             <div className="menu-wrap" ref={refUsuario}>
               <button className="user-btn" onClick={() => { setUsuario((v) => !v); setCampana(false) }}>
-                <Avatar nombre={perfil.nombreContacto} size={34} />
+                <Avatar nombre={perfil.nombreContacto} size={34} foto={u.foto} />
                 <span className="user-btn-name">{ROL_TXT[u.rol]}</span>
                 <Icon name="chevdown" size={16} />
               </button>

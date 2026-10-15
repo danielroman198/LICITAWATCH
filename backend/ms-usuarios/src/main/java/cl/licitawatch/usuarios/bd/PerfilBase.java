@@ -10,7 +10,7 @@ public abstract class PerfilBase {
     @Column(name = "usuario_id", nullable = false) private Long usuarioId;
     @Column(name = "razon_social", nullable = false) private String razonSocial;
     @Column(nullable = false, length = 12) private String rut;                       // normalizado: 76123456K
-    @Column(name = "rut_persona", length = 12) private String rutPersona;            // RUT de la persona de contacto, normalizado
+    @Column(name = "rut_persona", nullable = false, length = 12) private String rutPersona;           // RUT de la persona de contacto, normalizado
     @Column(name = "nombre_contacto", nullable = false) private String nombreContacto;
     @Column(name = "email_contacto", nullable = false) private String emailContacto;
     @Column(nullable = false, length = 20) private String telefono;

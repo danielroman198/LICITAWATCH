@@ -11,3 +11,13 @@ DO $$ BEGIN
     ALTER TABLE pyme ADD CONSTRAINT uq_pyme_rut_persona UNIQUE (rut_persona);
   END IF;
 END $$;
+-- Igual que en 01_usuarios.sql la columna es obligatoria. Solo se aplica si ya no quedan cuentas sin RUT personal
+-- (si quedan, se avisa y hay que completarlas antes de volver a ejecutar este script).
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM licitador WHERE rut_persona IS NULL) OR EXISTS (SELECT 1 FROM pyme WHERE rut_persona IS NULL) THEN
+    RAISE NOTICE 'Hay cuentas sin rut_persona: complétalas y vuelve a ejecutar para dejar la columna NOT NULL';
+  ELSE
+    ALTER TABLE licitador ALTER COLUMN rut_persona SET NOT NULL;
+    ALTER TABLE pyme      ALTER COLUMN rut_persona SET NOT NULL;
+  END IF;
+END $$;

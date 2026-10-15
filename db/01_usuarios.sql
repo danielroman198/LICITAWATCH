@@ -130,8 +130,9 @@ INSERT INTO region (nombre) VALUES
   ('Aysén'),
   ('Magallanes')
 ON CONFLICT DO NOTHING;
+-- Se insertan en el orden de la lista (mismo orden que Seeder.java) para que los ids sean iguales en todos los equipos.
 INSERT INTO ciudad (nombre, region_id)
-SELECT v.ciudad, r.id FROM (VALUES
+SELECT v.ciudad, r.id FROM (SELECT x.*, row_number() OVER () AS orden FROM (VALUES
   ('Arica', 'Arica y Parinacota'),
   ('Iquique', 'Tarapacá'),
   ('Antofagasta', 'Antofagasta'),
@@ -154,8 +155,9 @@ SELECT v.ciudad, r.id FROM (VALUES
   ('Osorno', 'Los Lagos'),
   ('Coyhaique', 'Aysén'),
   ('Punta Arenas', 'Magallanes')
-) AS v(ciudad, region) JOIN region r ON r.nombre = v.region
-WHERE NOT EXISTS (SELECT 1 FROM ciudad);
+) AS x(ciudad, region)) v JOIN region r ON r.nombre = v.region
+WHERE NOT EXISTS (SELECT 1 FROM ciudad)
+ORDER BY v.orden;
 
 -- La cuenta admin@licitawatch.cl (con su fila en administrador) la crea el microservicio ms-usuarios al iniciar,
 -- porque necesita el hash bcrypt de la contraseña.

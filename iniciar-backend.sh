@@ -1,5 +1,7 @@
 #!/bin/bash
 GATEWAY_PORT=${GATEWAY_PORT:-8090}
+# Configuración local del correo (SMTP). Ver correo.env.example; correo.env no se sube a GitHub.
+if [ -f "$(dirname "$0")/correo.env" ]; then set -a; . "$(dirname "$0")/correo.env"; set +a; echo "Correo: usando correo.env (MAIL_ACTIVO=$MAIL_ACTIVO)"; fi
 cd "$(dirname "$0")/backend" || exit 1
 mkdir -p ../logs
 pkill -f -- '-1.0.0.jar' 2>/dev/null; sleep 2

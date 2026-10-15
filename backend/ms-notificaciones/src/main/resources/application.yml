@@ -6,6 +6,14 @@ spring:
     port: ${SMTP_PORT:1025}
     username: ${SMTP_USER:}
     password: ${SMTP_PASS:}
+    default-encoding: UTF-8
+    properties:                                  # Gmail/Outlook: SMTP_AUTH=true y SMTP_STARTTLS=true (puerto 587)
+      mail.smtp.auth: ${SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
+      mail.smtp.starttls.required: ${SMTP_STARTTLS:false}
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/licitawatch_notificaciones}
     username: ${DB_USER:postgres}

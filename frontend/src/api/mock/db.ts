@@ -50,7 +50,7 @@ export const PLANES: Plan[] = [
   },
 ]
 
-const KEY = 'lw_db_v3'
+const KEY = 'lw_db_v4'
 const DAY = 86400000
 const iso = (t: number) => new Date(t).toISOString()
 
@@ -101,7 +101,7 @@ function seed(): DB {
   const r = rng(2026)
   const now = Date.now()
   const db: DB = {
-    version: 3, seq: {}, usuarios: [], perfiles: [], licitaciones: [], postulaciones: [], conversaciones: [],
+    version: 4, seq: {}, usuarios: [], perfiles: [], licitaciones: [], postulaciones: [], conversaciones: [],
     mensajes: [], notificaciones: [], suscripciones: [], ventas: [], correos: [], tokens: [], sesiones: {},
   }
 
@@ -140,7 +140,7 @@ function seed(): DB {
   })
 
   const pymes = [
-    ['pyme@demo.cl', 'Soluciones TI Maipo SpA', 76901230, 'Tecnología', 'Maipú', 'Daniela Soto', 1],
+    ['pyme@demo.cl', 'Soluciones TI Maipo SpA', 76901230, 'Tecnología', 'Santiago', 'Daniela Soto', 1],
     ['premium@demo.cl', 'Ingeniería Atacama Ltda.', 77012340, 'Construcción', 'Copiapó', 'Felipe Araya', 2],
     ['contacto@aseonorte.cl', 'Aseo Industrial Norte SpA', 76123451, 'Aseo y Mantención', 'Antofagasta', 'Marcela Pinto', 1],
     ['ventas@graficasur.cl', 'Gráfica Sur Impresos Ltda.', 77234561, 'Imprenta y Embalaje', 'Osorno', 'Tomás Gallardo', 1],
@@ -149,7 +149,7 @@ function seed(): DB {
     ['hola@ecorecicla.cl', 'EcoRecicla Chile SpA', 77567891, 'Medio Ambiente y Reciclaje', 'Valparaíso', 'Camila Ibarra', 1],
     ['eventos@cateringvalle.cl', 'Catering Del Valle SpA', 76678901, 'Alimentos y Casino', 'Rancagua', 'Rosa Cárdenas', 2],
     ['proyectos@electromaule.cl', 'Electro Maule Ltda.', 76789012, 'Energía', 'Talca', 'Nicolás Pizarro', 2],
-    ['estudio@pixelmkt.cl', 'Marketing Pixel Studio SpA', 77890123, 'Marketing y Publicidad', 'Providencia', 'Valentina Rivas', 1],
+    ['estudio@pixelmkt.cl', 'Marketing Pixel Studio SpA', 77890123, 'Marketing y Publicidad', 'Santiago', 'Valentina Rivas', 1],
     ['contacto@consultoresbiobio.cl', 'Consultores Biobío Ltda.', 76901234, 'Servicios Profesionales', 'Concepción', 'Andrés Cifuentes', 2],
     ['taller@soldadurapacifico.cl', 'Soldaduras Pacífico SpA', 77012345, 'Mantención Industrial', 'Talcahuano', 'Héctor Meza', 1],
     ['ventas@textilesnuble.cl', 'Textiles Ñuble SpA', 76123452, 'Textil y Vestuario', 'Chillán', 'Sofía Parra', 1],

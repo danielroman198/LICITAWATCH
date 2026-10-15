@@ -30,7 +30,7 @@ public class Seeder implements CommandLineRunner {
             Map<String, List<String>> reg = new LinkedHashMap<>();
             reg.put("Arica y Parinacota", List.of("Arica")); reg.put("Tarapacá", List.of("Iquique")); reg.put("Antofagasta", List.of("Antofagasta", "Calama"));
             reg.put("Atacama", List.of("Copiapó")); reg.put("Coquimbo", List.of("La Serena", "Coquimbo")); reg.put("Valparaíso", List.of("Valparaíso", "Viña del Mar"));
-            reg.put("Metropolitana de Santiago", List.of("Santiago", "Maipú", "Las Condes", "Providencia", "Ñuñoa")); reg.put("O'Higgins", List.of("Rancagua"));
+            reg.put("Metropolitana de Santiago", List.of("Santiago")); reg.put("O'Higgins", List.of("Rancagua"));
             reg.put("Maule", List.of("Talca", "Curicó")); reg.put("Ñuble", List.of("Chillán")); reg.put("Biobío", List.of("Concepción", "Los Ángeles"));
             reg.put("La Araucanía", List.of("Temuco")); reg.put("Los Ríos", List.of("Valdivia")); reg.put("Los Lagos", List.of("Puerto Montt", "Osorno"));
             reg.put("Aysén", List.of("Coyhaique")); reg.put("Magallanes", List.of("Punta Arenas"));

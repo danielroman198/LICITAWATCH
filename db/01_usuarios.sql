@@ -140,11 +140,7 @@ SELECT v.ciudad, r.id FROM (VALUES
   ('Coquimbo', 'Coquimbo'),
   ('Valparaíso', 'Valparaíso'),
   ('Viña del Mar', 'Valparaíso'),
-  ('Santiago', 'Metropolitana de Santiago'),
-  ('Maipú', 'Metropolitana de Santiago'),
-  ('Las Condes', 'Metropolitana de Santiago'),
-  ('Providencia', 'Metropolitana de Santiago'),
-  ('Ñuñoa', 'Metropolitana de Santiago'),
+  ('Santiago', 'Metropolitana de Santiago'),     -- la RM tiene una sola ciudad; sus comunas no se listan
   ('Rancagua', 'O''Higgins'),
   ('Talca', 'Maule'),
   ('Curicó', 'Maule'),

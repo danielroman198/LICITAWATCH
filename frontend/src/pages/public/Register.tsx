@@ -6,7 +6,7 @@ import { Logo } from '../../components/layout/Logo'
 import { PublicPage } from '../../components/layout/PublicLayout'
 import { Accordion, Badge, Button, Field, Input, Select, Textarea, useToast } from '../../components/ui/ui'
 import { Icon } from '../../lib/icons'
-import { esRutEmpresa, esRutPersona, formatearRut, validarRut } from '../../lib/rut'
+import { esRutEmpresa, esRutPersona, formatearRut, limpiarRut, validarRut } from '../../lib/rut'
 import { validarEmail, validarPassword } from '../../lib/format'
 import { useAuth, useCatalogos } from '../../context/AuthContext'
 import { RUT_DE_PRUEBA } from '../../api/mock/sii'
@@ -192,7 +192,12 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
     }
   }
 
-  const ok1 = !!nombres && !!apellidos && validarRut(rutPersona) && rutPersonaOk !== false && validarEmail(emailContacto) && telefono.replace(/\D/g, '').length >= 8 && abierto > 0
+  // Mensaje en vivo del RUT personal: dígito verificador (cuando ya está completo), tipo y disponibilidad.
+  const errorRutPersonaVivo = limpiarRut(rutPersona).length >= 9 && !validarRut(rutPersona) ? 'RUT inválido (revisa el dígito verificador)'
+    : validarRut(rutPersona) && !esRutPersona(rutPersona) ? 'Ingresa tu RUT personal, no el de la empresa'
+    : rutPersonaOk === false ? 'Ese RUT personal ya está registrado en otra cuenta' : null
+
+  const ok1 =!!nombres && !!apellidos && validarRut(rutPersona) && rutPersonaOk !== false && validarEmail(emailContacto) && telefono.replace(/\D/g, '').length >= 8 && abierto > 0
   const ok2 = !!regionId && !!ciudadId && abierto > 1
   const ok3 = siiEstado === 'ok' && !!rubroId && abierto > 2
 
@@ -212,8 +217,8 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
                 <Field label="Nombres" required error={errores.nombres}><Input value={nombres} onChange={(e) => setNombres(e.target.value)} placeholder="Ingresa tus nombres" autoComplete="given-name" /></Field>
                 <Field label="Apellidos" required error={errores.apellidos}><Input value={apellidos} onChange={(e) => setApellidos(e.target.value)} placeholder="Ingresa tus apellidos" autoComplete="family-name" /></Field>
               </div>
-              <Field label="RUT personal" required error={errores.rutPersona || (rutPersonaOk === false ? 'Ese RUT personal ya está registrado en otra cuenta' : null)} ok={rutPersonaOk ? 'RUT disponible' : null} hint="Identifica a la persona de contacto. Ej: 12.345.678-5">
-                <Input icon="user" value={rutPersona} onChange={(e) => setRutPersona(formatearRut(e.target.value))} placeholder="12.345.678-5" inputMode="text" maxLength={12} />
+              <Field label="RUT personal" required error={errores.rutPersona || errorRutPersonaVivo} ok={rutPersonaOk ? 'RUT disponible' : null} hint="Identifica a la persona de contacto. Ej: 12.345.678-5">
+                <Input icon="user" value={rutPersona} onChange={(e) => { setRutPersona(formatearRut(e.target.value)); setErrores((x) => ({ ...x, rutPersona: '' })) }} placeholder="12.345.678-5" inputMode="text" maxLength={12} />
               </Field>
               <Field label="Correo de contacto" required error={errores.emailContacto}><Input icon="mail" type="email" value={emailContacto} onChange={(e) => setEmailContacto(e.target.value)} placeholder="correo@tuempresa.cl" /></Field>
               <Field label="Teléfono móvil" required error={errores.telefono}>
@@ -230,7 +235,7 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
                     {cat.regiones.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                   </Select>
                 </Field>
-                <Field label="Ciudad / comuna" required error={errores.ciudadId}>
+                <Field label="Ciudad" required error={errores.ciudadId}>
                   <Select value={ciudadId} onChange={(e) => setCiudadId(Number(e.target.value))} disabled={!regionId}>
                     <option value={0}>{regionId ? 'Selecciona ciudad' : 'Primero elige región'}</option>
                     {ciudadesRegion.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}

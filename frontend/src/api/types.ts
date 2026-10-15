@@ -295,6 +295,7 @@ export interface Api {
   registrarPyme(d: RegistroPyme): Promise<Sesion>
   emailDisponible(email: string): Promise<boolean>
   rutDisponible(rut: string): Promise<boolean>
+  rutPersonaDisponible(rut: string): Promise<boolean>
   consultarSii(rut: string): Promise<ConsultaSii>
   solicitarRecuperacion(email: string): Promise<void>
   restablecerPassword(token: string, password: string): Promise<void>

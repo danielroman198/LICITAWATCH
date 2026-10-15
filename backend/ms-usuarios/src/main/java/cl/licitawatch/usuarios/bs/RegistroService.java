@@ -29,6 +29,7 @@ public class RegistroService {
 
     public boolean emailDisponible(String email) { return !usuarios.existsByEmailIgnoreCase(email.trim()); }
     public boolean rutDisponible(String rut) { return !perfiles.rutExiste(Rut.limpiar(rut)); }
+    public boolean rutPersonaDisponible(String rut) { return !perfiles.rutPersonaExiste(Rut.limpiar(rut)); }
 
     /**
      * Flujo POST del ER: una transacción con INSERT en usuario y luego en licitador o pyme.

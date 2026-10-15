@@ -56,6 +56,7 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
   const [nombres, setNombres] = useState('')
   const [apellidos, setApellidos] = useState('')
   const [rutPersona, setRutPersona] = useState('')
+  const [rutPersonaOk, setRutPersonaOk] = useState<null | boolean>(null)
   const [emailContacto, setEmailContacto] = useState('')
   const [telefono, setTelefono] = useState('')
   // Paso 2: ubicación
@@ -83,6 +84,17 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
   const ciudadesRegion = useMemo(() => cat.ciudades.filter((c) => c.regionId === regionId), [cat.ciudades, regionId])
   useEffect(() => { setCiudadId(0) }, [regionId])
 
+  // RUT personal: apenas está completo y es válido, se revisa que no esté en otra cuenta.
+  useEffect(() => {
+    setRutPersonaOk(null)
+    if (!validarRut(rutPersona) || !esRutPersona(rutPersona)) return
+    let vigente = true
+    const t = setTimeout(async () => {
+      try { const d = await api.rutPersonaDisponible(rutPersona); if (vigente) setRutPersonaOk(d) } catch { /* se valida de nuevo al registrar */ }
+    }, 350)
+    return () => { vigente = false; clearTimeout(t) }
+  }, [rutPersona])
+
   const color = esPyme ? 'teal' : 'blue'
   const titulo = esPyme ? 'Crea tu cuenta de Pyme' : 'Crea tu cuenta de Licitador'
 
@@ -92,6 +104,7 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
     if (apellidos.trim().length < 2) e.apellidos = 'Ingresa tus apellidos'
     if (!validarRut(rutPersona)) e.rutPersona = 'RUT inválido (revisa el dígito verificador)'
     else if (!esRutPersona(rutPersona)) e.rutPersona = 'Ingresa tu RUT personal, no el de la empresa'
+    else if (rutPersonaOk === false) e.rutPersona = 'Ese RUT personal ya está registrado en otra cuenta'
     if (!validarEmail(emailContacto)) e.emailContacto = 'Correo inválido'
     if (telefono.replace(/\D/g, '').length < 8) e.telefono = 'Teléfono inválido'
     setErrores((x) => ({ ...x, ...e, ...(Object.keys(e).length ? {} : { nombres: '', apellidos: '', rutPersona: '', emailContacto: '', telefono: '' }) }))
@@ -171,14 +184,15 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
     } catch (err) {
       toast.error((err as Error).message)
       const m = (err as Error).message.toLowerCase()
-      if (m.includes('rut de esa empresa') || m.includes('rut de la empresa') || m.includes('sii')) setAbierto(2)
+      if (m.includes('rut personal') || m.includes('rut de la persona')) { setRutPersonaOk(false); setAbierto(0) }
+      else if (m.includes('rut de esa empresa') || m.includes('rut de la empresa') || m.includes('sii')) setAbierto(2)
       else if (m.includes('correo')) setAbierto(3)
     } finally {
       setEnviando(false)
     }
   }
 
-  const ok1 = !!nombres && !!apellidos && validarRut(rutPersona) && validarEmail(emailContacto) && telefono.replace(/\D/g, '').length >= 8 && abierto > 0
+  const ok1 = !!nombres && !!apellidos && validarRut(rutPersona) && rutPersonaOk !== false && validarEmail(emailContacto) && telefono.replace(/\D/g, '').length >= 8 && abierto > 0
   const ok2 = !!regionId && !!ciudadId && abierto > 1
   const ok3 = siiEstado === 'ok' && !!rubroId && abierto > 2
 
@@ -198,7 +212,7 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
                 <Field label="Nombres" required error={errores.nombres}><Input value={nombres} onChange={(e) => setNombres(e.target.value)} placeholder="Ingresa tus nombres" autoComplete="given-name" /></Field>
                 <Field label="Apellidos" required error={errores.apellidos}><Input value={apellidos} onChange={(e) => setApellidos(e.target.value)} placeholder="Ingresa tus apellidos" autoComplete="family-name" /></Field>
               </div>
-              <Field label="RUT personal" required error={errores.rutPersona} hint="Identifica a la persona de contacto. Ej: 12.345.678-5">
+              <Field label="RUT personal" required error={errores.rutPersona || (rutPersonaOk === false ? 'Ese RUT personal ya está registrado en otra cuenta' : null)} ok={rutPersonaOk ? 'RUT disponible' : null} hint="Identifica a la persona de contacto. Ej: 12.345.678-5">
                 <Input icon="user" value={rutPersona} onChange={(e) => setRutPersona(formatearRut(e.target.value))} placeholder="12.345.678-5" inputMode="text" maxLength={12} />
               </Field>
               <Field label="Correo de contacto" required error={errores.emailContacto}><Input icon="mail" type="email" value={emailContacto} onChange={(e) => setEmailContacto(e.target.value)} placeholder="correo@tuempresa.cl" /></Field>

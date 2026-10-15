@@ -195,6 +195,10 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
     await delay(250)
     return !loadDb().perfiles.some((p) => limpiarRut(p.rutEmpresa) === limpiarRut(rut))
   },
+  async rutPersonaDisponible(rut) {
+    await delay(250)
+    return !loadDb().perfiles.some((p) => limpiarRut(p.rutPersona) === limpiarRut(rut))
+  },
   consultarSii: consultarSiiMock,
   async solicitarRecuperacion(email) {
     await delay(600)

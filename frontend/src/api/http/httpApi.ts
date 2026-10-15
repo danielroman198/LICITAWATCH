@@ -59,6 +59,7 @@ export const httpApi: Api = {
   },
   async emailDisponible(email) { return (await get<{ disponible: boolean }>('/api/usuarios/disponibilidad/email', { valor: email })).disponible },
   async rutDisponible(rut) { return (await get<{ disponible: boolean }>('/api/usuarios/disponibilidad/rut', { valor: rut })).disponible },
+  async rutPersonaDisponible(rut) { return (await get<{ disponible: boolean }>('/api/usuarios/disponibilidad/rut-persona', { valor: rut })).disponible },
   consultarSii: (rut) => get(`/api/sii/${encodeURIComponent(rut)}`),
   async solicitarRecuperacion(email) { await post('/api/auth/recuperar', { email }) },
   async restablecerPassword(token, password) { await post('/api/auth/restablecer', { token, password }) },

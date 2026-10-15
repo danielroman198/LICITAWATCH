@@ -36,6 +36,7 @@ public class AuthController {
 
     @GetMapping("/api/usuarios/disponibilidad/email") public Disponible email(@RequestParam String valor) { return new Disponible(registro.emailDisponible(valor)); }
     @GetMapping("/api/usuarios/disponibilidad/rut") public Disponible rut(@RequestParam String valor) { return new Disponible(registro.rutDisponible(valor)); }
+    @GetMapping("/api/usuarios/disponibilidad/rut-persona") public Disponible rutPersona(@RequestParam String valor) { return new Disponible(registro.rutPersonaDisponible(valor)); }
 
     @PutMapping("/api/usuarios/perfil")
     public PerfilDto perfil(HttpServletRequest r, @RequestBody PerfilEdicion b) { return registro.actualizarPerfil(Auth.sesion(r).usuarioId(), b); }

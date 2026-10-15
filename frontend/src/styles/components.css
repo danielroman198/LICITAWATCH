@@ -40,6 +40,7 @@
 .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
 .input:disabled { background: var(--surface-2); color: var(--muted); cursor: not-allowed; }
 .has-error .input { border-color: var(--red); }
+.has-ok .input { border-color: var(--green); }
 .textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
 .with-icon .input { padding-left: 42px; }
 .input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--subtle); pointer-events: none; }

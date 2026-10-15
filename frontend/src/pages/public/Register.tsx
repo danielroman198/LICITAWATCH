@@ -79,7 +79,9 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
   const [password2, setPassword2] = useState('')
   const [verPass, setVerPass] = useState(false)
   const [terminos, setTerminos] = useState(false)
-  const [errores, setErrores] = useState<Record<string, string>>({})
+  // Campos que ya deben mostrar su error (el usuario salió del campo o presionó Continuar).
+  const [vistos, setVistos] = useState<Record<string, boolean>>({})
+  const ver = (...campos: string[]) => setVistos((v) => ({ ...v, ...Object.fromEntries(campos.map((c) => [c, true])) }))
 
   const ciudadesRegion = useMemo(() => cat.ciudades.filter((c) => c.regionId === regionId), [cat.ciudades, regionId])
   useEffect(() => { setCiudadId(0) }, [regionId])
@@ -95,42 +97,57 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
     return () => { vigente = false; clearTimeout(t) }
   }, [rutPersona])
 
+  // Correo de acceso: lo mismo, apenas tiene formato válido se revisa que no tenga cuenta.
+  useEffect(() => {
+    setEmailOk(null)
+    if (!validarEmail(email)) return
+    let vigente = true
+    const t = setTimeout(async () => {
+      try { const d = await api.emailDisponible(email); if (vigente) setEmailOk(d) } catch { /* se valida de nuevo al registrar */ }
+    }, 350)
+    return () => { vigente = false; clearTimeout(t) }
+  }, [email])
+
   const color = esPyme ? 'teal' : 'blue'
   const titulo = esPyme ? 'Crea tu cuenta de Pyme' : 'Crea tu cuenta de Licitador'
 
-  const validarPaso1 = () => {
-    const e: Record<string, string> = {}
-    if (nombres.trim().length < 2) e.nombres = 'Ingresa tus nombres'
-    if (apellidos.trim().length < 2) e.apellidos = 'Ingresa tus apellidos'
-    if (!validarRut(rutPersona)) e.rutPersona = 'RUT inválido (revisa el dígito verificador)'
-    else if (!esRutPersona(rutPersona)) e.rutPersona = 'Ingresa tu RUT personal, no el de la empresa'
-    else if (rutPersonaOk === false) e.rutPersona = 'Ese RUT personal ya está registrado en otra cuenta'
-    if (!validarEmail(emailContacto)) e.emailContacto = 'Correo inválido'
-    if (telefono.replace(/\D/g, '').length < 8) e.telefono = 'Teléfono inválido'
-    setErrores((x) => ({ ...x, ...e, ...(Object.keys(e).length ? {} : { nombres: '', apellidos: '', rutPersona: '', emailContacto: '', telefono: '' }) }))
-    return Object.keys(e).length === 0
+  // Errores calculados en vivo a partir de lo escrito: cambian apenas se corrige el campo.
+  const err: Record<string, string | null> = {
+    nombres: nombres.trim().length < 2 ? 'Ingresa tus nombres' : null,
+    apellidos: apellidos.trim().length < 2 ? 'Ingresa tus apellidos' : null,
+    rutPersona: !rutPersona ? 'Ingresa tu RUT personal'
+      : !validarRut(rutPersona) ? 'RUT inválido (revisa el dígito verificador)'
+      : !esRutPersona(rutPersona) ? 'Ingresa tu RUT personal, no el de la empresa'
+      : rutPersonaOk === false ? 'Ese RUT personal ya está registrado en otra cuenta' : null,
+    emailContacto: !validarEmail(emailContacto) ? 'Correo inválido' : null,
+    telefono: telefono.replace(/\D/g, '').length < 8 ? 'Teléfono inválido' : null,
+    regionId: !regionId ? 'Selecciona una región' : null,
+    ciudadId: !ciudadId ? 'Selecciona una ciudad' : null,
+    rutEmpresa: siiEstado === 'error' ? siiMsg : siiEstado !== 'ok' ? 'Valida el RUT de la empresa con el SII' : null,
+    razonSocial: razonSocial.trim().length < 3 ? 'Ingresa la razón social' : null,
+    rubroId: !rubroId ? 'Selecciona un rubro' : null,
+    tamanoId: esPyme && !tamanoId ? 'Selecciona el tamaño de tu empresa' : null,
+    descripcion: descripcion.trim().length < 20 ? 'Cuéntanos un poco más (mínimo 20 caracteres)' : null,
+    email: !validarEmail(email) ? 'Correo inválido' : emailOk === false ? 'Ese correo ya tiene una cuenta' : null,
+    password: validarPassword(password) || null,
+    password2: !password2 ? 'Repite la contraseña' : password !== password2 ? 'Las contraseñas no coinciden' : null,
+    terminos: !terminos ? 'Debes aceptar los términos' : null,
   }
-  const validarPaso2 = () => {
-    const e: Record<string, string> = {}
-    if (!regionId) e.regionId = 'Selecciona una región'
-    if (!ciudadId) e.ciudadId = 'Selecciona una ciudad'
-    setErrores((x) => ({ ...x, regionId: '', ciudadId: '', ...e }))
-    return Object.keys(e).length === 0
-  }
-  const validarPaso3 = () => {
-    const e: Record<string, string> = {}
-    if (siiEstado !== 'ok') e.rutEmpresa = 'Valida el RUT de la empresa con el SII'
-    if (razonSocial.trim().length < 3) e.razonSocial = 'Ingresa la razón social'
-    if (!rubroId) e.rubroId = 'Selecciona un rubro'
-    if (esPyme && !tamanoId) e.tamanoId = 'Selecciona el tamaño de tu empresa'
-    if (descripcion.trim().length < 20) e.descripcion = 'Cuéntanos un poco más (mínimo 20 caracteres)'
-    setErrores((x) => ({ ...x, rutEmpresa: '', razonSocial: '', rubroId: '', tamanoId: '', descripcion: '', ...e }))
-    return Object.keys(e).length === 0
-  }
+  const CAMPOS: string[][] = [
+    ['nombres', 'apellidos', 'rutPersona', 'emailContacto', 'telefono'],
+    ['regionId', 'ciudadId'],
+    ['rutEmpresa', 'razonSocial', 'rubroId', 'tamanoId', 'descripcion'],
+    ['email', 'password', 'password2', 'terminos'],
+  ]
+  const pasoValido = (p: Paso) => CAMPOS[p].every((c) => !err[c])
+  // El RUT personal y el SII avisan al instante aunque el campo no se haya marcado como visto.
+  const errorDe = (c: string) => vistos[c] || (c === 'rutPersona' && (limpiarRut(rutPersona).length >= 9 || rutPersonaOk === false)) || (c === 'rutEmpresa' && siiEstado === 'error') ? err[c] : null
+  // Verde apenas el campo es válido (texto = mensaje bajo el campo, true = solo borde).
+  const okDe = (c: string, msg: string | true = true) => !err[c] ? msg : null
 
   const siguiente = (p: Paso) => {
-    const ok = p === 0 ? validarPaso1() : p === 1 ? validarPaso2() : p === 2 ? validarPaso3() : true
-    if (ok) setAbierto((p + 1) as Paso)
+    ver(...CAMPOS[p])
+    if (pasoValido(p)) setAbierto((p + 1) as Paso)
   }
 
   const validarSii = async () => {
@@ -151,25 +168,11 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
     }
   }
 
-  const revisarEmail = async () => {
-    if (!validarEmail(email)) { setEmailOk(null); return }
-    try { setEmailOk(await api.emailDisponible(email)) } catch { setEmailOk(null) }
-  }
-
   const enviar = async (ev: FormEvent) => {
     ev.preventDefault()
-    const e: Record<string, string> = {}
-    if (!validarEmail(email)) e.email = 'Correo inválido'
-    else if (emailOk === false) e.email = 'Ese correo ya tiene una cuenta'
-    const ep = validarPassword(password)
-    if (ep) e.password = ep
-    if (password !== password2) e.password2 = 'Las contraseñas no coinciden'
-    if (!terminos) e.terminos = 'Debes aceptar los términos'
-    setErrores((x) => ({ ...x, email: '', password: '', password2: '', terminos: '', ...e }))
-    if (Object.keys(e).length) return
-    if (!validarPaso1()) { setAbierto(0); return }
-    if (!validarPaso2()) { setAbierto(1); return }
-    if (!validarPaso3()) { setAbierto(2); return }
+    ver(...CAMPOS.flat())
+    const malo = ([0, 1, 2, 3] as Paso[]).find((p) => !pasoValido(p))
+    if (malo !== undefined) { setAbierto(malo); return }
     setEnviando(true)
     const base = {
       email, password, razonSocial, rutEmpresa, rutPersona, nombreContacto: `${nombres.trim()} ${apellidos.trim()}`,
@@ -186,20 +189,15 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
       const m = (err as Error).message.toLowerCase()
       if (m.includes('rut personal') || m.includes('rut de la persona')) { setRutPersonaOk(false); setAbierto(0) }
       else if (m.includes('rut de esa empresa') || m.includes('rut de la empresa') || m.includes('sii')) setAbierto(2)
-      else if (m.includes('correo')) setAbierto(3)
+      else if (m.includes('correo')) { setEmailOk(false); setAbierto(3) }
     } finally {
       setEnviando(false)
     }
   }
 
-  // Mensaje en vivo del RUT personal: dígito verificador (cuando ya está completo), tipo y disponibilidad.
-  const errorRutPersonaVivo = limpiarRut(rutPersona).length >= 9 && !validarRut(rutPersona) ? 'RUT inválido (revisa el dígito verificador)'
-    : validarRut(rutPersona) && !esRutPersona(rutPersona) ? 'Ingresa tu RUT personal, no el de la empresa'
-    : rutPersonaOk === false ? 'Ese RUT personal ya está registrado en otra cuenta' : null
-
-  const ok1 =!!nombres && !!apellidos && validarRut(rutPersona) && rutPersonaOk !== false && validarEmail(emailContacto) && telefono.replace(/\D/g, '').length >= 8 && abierto > 0
-  const ok2 = !!regionId && !!ciudadId && abierto > 1
-  const ok3 = siiEstado === 'ok' && !!rubroId && abierto > 2
+  const ok1 = pasoValido(0) && abierto > 0
+  const ok2 = pasoValido(1) && abierto > 1
+  const ok3 = pasoValido(2) && abierto > 2
 
   return (
     <div className={`auth auth-${color}`}>
@@ -214,29 +212,29 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
           <form onSubmit={enviar} noValidate className="acc-list">
             <Accordion titulo="Información personal" icon="user" abierto={abierto === 0} onToggle={() => setAbierto(abierto === 0 ? 3 : 0)} estado={ok1 ? 'ok' : undefined}>
               <div className="grid-2">
-                <Field label="Nombres" required error={errores.nombres}><Input value={nombres} onChange={(e) => setNombres(e.target.value)} placeholder="Ingresa tus nombres" autoComplete="given-name" /></Field>
-                <Field label="Apellidos" required error={errores.apellidos}><Input value={apellidos} onChange={(e) => setApellidos(e.target.value)} placeholder="Ingresa tus apellidos" autoComplete="family-name" /></Field>
+                <Field label="Nombres" required error={errorDe('nombres')} ok={okDe('nombres')}><Input value={nombres} onChange={(e) => setNombres(e.target.value)} onBlur={() => ver('nombres')} placeholder="Ingresa tus nombres" autoComplete="given-name" /></Field>
+                <Field label="Apellidos" required error={errorDe('apellidos')} ok={okDe('apellidos')}><Input value={apellidos} onChange={(e) => setApellidos(e.target.value)} onBlur={() => ver('apellidos')} placeholder="Ingresa tus apellidos" autoComplete="family-name" /></Field>
               </div>
-              <Field label="RUT personal" required error={errores.rutPersona || errorRutPersonaVivo} ok={rutPersonaOk ? 'RUT disponible' : null} hint="Identifica a la persona de contacto. Ej: 12.345.678-5">
-                <Input icon="user" value={rutPersona} onChange={(e) => { setRutPersona(formatearRut(e.target.value)); setErrores((x) => ({ ...x, rutPersona: '' })) }} placeholder="12.345.678-5" inputMode="text" maxLength={12} />
+              <Field label="RUT personal" required error={errorDe('rutPersona')} ok={!err.rutPersona && rutPersonaOk ? 'RUT disponible' : null} hint="Identifica a la persona de contacto. Ej: 12.345.678-5">
+                <Input icon="user" value={rutPersona} onChange={(e) => setRutPersona(formatearRut(e.target.value))} onBlur={() => ver('rutPersona')} placeholder="12.345.678-5" inputMode="text" maxLength={12} />
               </Field>
-              <Field label="Correo de contacto" required error={errores.emailContacto}><Input icon="mail" type="email" value={emailContacto} onChange={(e) => setEmailContacto(e.target.value)} placeholder="correo@tuempresa.cl" /></Field>
-              <Field label="Teléfono móvil" required error={errores.telefono}>
-                <span className="phone"><span className="phone-pre">🇨🇱 +56</span><Input value={telefono} onChange={(e) => setTelefono(e.target.value.replace(/[^\d ]/g, ''))} placeholder="9 1234 5678" inputMode="tel" maxLength={13} /></span>
+              <Field label="Correo de contacto" required error={errorDe('emailContacto')} ok={okDe('emailContacto', 'Correo válido')}><Input icon="mail" type="email" value={emailContacto} onChange={(e) => setEmailContacto(e.target.value)} onBlur={() => ver('emailContacto')} placeholder="correo@tuempresa.cl" /></Field>
+              <Field label="Teléfono móvil" required error={errorDe('telefono')} ok={okDe('telefono', 'Teléfono válido')}>
+                <span className="phone"><span className="phone-pre">🇨🇱 +56</span><Input value={telefono} onChange={(e) => setTelefono(e.target.value.replace(/[^\d ]/g, ''))} onBlur={() => ver('telefono')} placeholder="9 1234 5678" inputMode="tel" maxLength={13} /></span>
               </Field>
               <Button type="button" iconRight="arrowright" onClick={() => siguiente(0)} block>Continuar</Button>
             </Accordion>
 
             <Accordion titulo="Ubicación" icon="pin" abierto={abierto === 1} onToggle={() => setAbierto(abierto === 1 ? 3 : 1)} estado={ok2 ? 'ok' : undefined}>
               <div className="grid-2">
-                <Field label="Región" required error={errores.regionId}>
-                  <Select value={regionId} onChange={(e) => setRegionId(Number(e.target.value))}>
+                <Field label="Región" required error={errorDe('regionId')} ok={okDe('regionId')}>
+                  <Select value={regionId} onChange={(e) => setRegionId(Number(e.target.value))} onBlur={() => ver('regionId')}>
                     <option value={0}>Selecciona región</option>
                     {cat.regiones.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                   </Select>
                 </Field>
-                <Field label="Ciudad" required error={errores.ciudadId}>
-                  <Select value={ciudadId} onChange={(e) => setCiudadId(Number(e.target.value))} disabled={!regionId}>
+                <Field label="Ciudad" required error={errorDe('ciudadId')} ok={okDe('ciudadId')}>
+                  <Select value={ciudadId} onChange={(e) => setCiudadId(Number(e.target.value))} onBlur={() => ver('ciudadId')} disabled={!regionId}>
                     <option value={0}>{regionId ? 'Selecciona ciudad' : 'Primero elige región'}</option>
                     {ciudadesRegion.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                   </Select>
@@ -246,7 +244,7 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
             </Accordion>
 
             <Accordion titulo="Cuenta Empresa" icon="building" abierto={abierto === 2} onToggle={() => setAbierto(abierto === 2 ? 3 : 2)} estado={ok3 ? 'ok' : undefined}>
-              <Field label="RUT de la empresa" required error={errores.rutEmpresa || (siiEstado === 'error' ? siiMsg : null)} hint="Lo validamos con el SII y debe ser único en la plataforma.">
+              <Field label="RUT de la empresa" required error={errorDe('rutEmpresa')} ok={siiEstado === 'ok'} hint="Lo validamos con el SII y debe ser único en la plataforma.">
                 <span className="rut-row">
                   <Input icon="building" value={rutEmpresa} onChange={(e) => { setRutEmpresa(formatearRut(e.target.value)); setSiiEstado('idle'); setSii(null) }} placeholder="76.123.456-K" maxLength={12} />
                   <Button type="button" variant={siiEstado === 'ok' ? 'success' : 'soft'} loading={siiEstado === 'cargando'} icon={siiEstado === 'ok' ? 'shieldcheck' : 'search'} onClick={validarSii}>
@@ -271,19 +269,19 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
                   <small>{sii.giro}</small>
                 </div>
               )}
-              <Field label="Razón social" required error={errores.razonSocial}>
-                <Input icon="briefcase" value={razonSocial} onChange={(e) => setRazonSocial(e.target.value)} placeholder="Nombre legal de la empresa" />
+              <Field label="Razón social" required error={errorDe('razonSocial')} ok={okDe('razonSocial')}>
+                <Input icon="briefcase" value={razonSocial} onChange={(e) => setRazonSocial(e.target.value)} onBlur={() => ver('razonSocial')} placeholder="Nombre legal de la empresa" />
               </Field>
               <div className="grid-2">
-                <Field label="Rubro" required error={errores.rubroId}>
-                  <Select value={rubroId} onChange={(e) => setRubroId(Number(e.target.value))}>
+                <Field label="Rubro" required error={errorDe('rubroId')} ok={okDe('rubroId')}>
+                  <Select value={rubroId} onChange={(e) => setRubroId(Number(e.target.value))} onBlur={() => ver('rubroId')}>
                     <option value={0}>Selecciona rubro</option>
                     {cat.rubros.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                   </Select>
                 </Field>
                 {esPyme ? (
-                  <Field label="Tamaño de empresa" required error={errores.tamanoId}>
-                    <Select value={tamanoId} onChange={(e) => setTamanoId(Number(e.target.value))}>
+                  <Field label="Tamaño de empresa" required error={errorDe('tamanoId')} ok={okDe('tamanoId')}>
+                    <Select value={tamanoId} onChange={(e) => setTamanoId(Number(e.target.value))} onBlur={() => ver('tamanoId')}>
                       <option value={0}>Selecciona tamaño</option>
                       {cat.tamanos.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
                     </Select>
@@ -293,28 +291,28 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
                 )}
               </div>
               {esPyme && <Field label="Sitio web (opcional)"><Input icon="globe" value={sitioWeb} onChange={(e) => setSitioWeb(e.target.value)} placeholder="https://tuempresa.cl" /></Field>}
-              <Field label="Descripción de la empresa" required error={errores.descripcion} hint={`${descripcion.length} caracteres`}>
-                <Textarea rows={3} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder={esPyme ? 'Qué servicios ofreces y tu experiencia…' : 'Qué hace tu empresa y qué tipo de servicios contratas…'} />
+              <Field label="Descripción de la empresa" required error={errorDe('descripcion')} ok={okDe('descripcion')} hint={`${descripcion.length} caracteres`}>
+                <Textarea rows={3} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} onBlur={() => ver('descripcion')} placeholder={esPyme ? 'Qué servicios ofreces y tu experiencia…' : 'Qué hace tu empresa y qué tipo de servicios contratas…'} />
               </Field>
               <Button type="button" iconRight="arrowright" onClick={() => siguiente(2)} block>Continuar</Button>
             </Accordion>
 
             <Accordion titulo="Acceso y contraseña" icon="lock" abierto={abierto === 3} onToggle={() => setAbierto(abierto === 3 ? 0 : 3)}>
-              <Field label="Correo de acceso" required error={errores.email || (emailOk === false ? 'Ese correo ya tiene una cuenta' : null)} ok={emailOk ? 'Correo disponible' : null} hint="Será tu usuario para iniciar sesión (único).">
-                <Input icon="mail" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setEmailOk(null) }} onBlur={revisarEmail} placeholder="tu@correo.cl" autoComplete="email" />
+              <Field label="Correo de acceso" required error={errorDe('email') ?? (emailOk === false ? err.email : null)} ok={!err.email && emailOk ? 'Correo disponible' : null} hint="Será tu usuario para iniciar sesión (único).">
+                <Input icon="mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => ver('email')} placeholder="tu@correo.cl" autoComplete="email" />
               </Field>
-              <Field label="Contraseña" required error={errores.password} hint="Mínimo 8 caracteres, con mayúscula, minúscula y número.">
-                <Input icon="lock" type={verPass ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password"
+              <Field label="Contraseña" required error={errorDe('password')} ok={okDe('password', 'Contraseña segura')} hint="Mínimo 8 caracteres, con mayúscula, minúscula y número.">
+                <Input icon="lock" type={verPass ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} onBlur={() => ver('password')} autoComplete="new-password"
                   right={<button type="button" className="icon-btn" onClick={() => setVerPass((v) => !v)} aria-label="Mostrar contraseña"><Icon name="eye" size={18} /></button>} />
               </Field>
-              <Field label="Repetir contraseña" required error={errores.password2}>
-                <Input icon="lock" type={verPass ? 'text' : 'password'} value={password2} onChange={(e) => setPassword2(e.target.value)} autoComplete="new-password" />
+              <Field label="Repetir contraseña" required error={errorDe('password2')} ok={okDe('password2', 'Las contraseñas coinciden')}>
+                <Input icon="lock" type={verPass ? 'text' : 'password'} value={password2} onChange={(e) => setPassword2(e.target.value)} onBlur={() => ver('password2')} autoComplete="new-password" />
               </Field>
-              <label className={`check ${errores.terminos ? 'err' : ''}`}>
+              <label className={`check ${errorDe('terminos') ? 'err' : ''}`}>
                 <input type="checkbox" checked={terminos} onChange={(e) => setTerminos(e.target.checked)} />
                 <span>Acepto los términos y la política de privacidad de LicitaWatch.</span>
               </label>
-              {errores.terminos && <span className="field-msg err"><Icon name="alert" size={14} />{errores.terminos}</span>}
+              {errorDe('terminos') && <span className="field-msg err"><Icon name="alert" size={14} />{err.terminos}</span>}
               <Button type="submit" size="lg" block loading={enviando} iconRight="arrowright">Crear cuenta</Button>
             </Accordion>
           </form>

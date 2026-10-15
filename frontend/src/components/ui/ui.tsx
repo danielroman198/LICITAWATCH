@@ -35,13 +35,13 @@ interface FieldProps {
   required?: boolean
   hint?: string
   error?: string | null
-  ok?: string | null
+  ok?: string | boolean | null   // texto: mensaje en verde; true: solo el borde verde
   children: ReactNode
   className?: string
 }
 export function Field({ label, required, hint, error, ok, children, className = '' }: FieldProps) {
   return (
-    <label className={`field ${error ? 'has-error' : ''} ${className}`}>
+    <label className={`field ${error ? 'has-error' : ok ? 'has-ok' : ''} ${className}`}>
       {label && (
         <span className="field-label">
           {label}
@@ -50,7 +50,7 @@ export function Field({ label, required, hint, error, ok, children, className = 
       )}
       {children}
       {error ? <span className="field-msg err"><Icon name="alert" size={14} />{error}</span>
-        : ok ? <span className="field-msg ok"><Icon name="checkcircle" size={14} />{ok}</span>
+        : typeof ok === 'string' && ok ? <span className="field-msg ok"><Icon name="checkcircle" size={14} />{ok}</span>
         : hint ? <span className="field-msg">{hint}</span> : null}
     </label>
   )

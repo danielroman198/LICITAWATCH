@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../../api'
 import type { Mensaje } from '../../api/types'
-import { Avatar, Button, Card, Cargando, EmptyState, PageHeader, useAsync, useToast } from '../../components/ui/ui'
+import { Avatar, Button, Card, Cargando, EmptyState, Modal, PageHeader, useAsync, useToast } from '../../components/ui/ui'
 import { useAuth, useCatalogos } from '../../context/AuthContext'
 import { Icon } from '../../lib/icons'
 import { Link, navigate } from '../../lib/router'
@@ -16,6 +16,8 @@ export function Chat({ id }: { id?: number }) {
   const [cargandoMsgs, setCargandoMsgs] = useState(false)
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [eliminar, setEliminar] = useState(false)
+  const [eliminando, setEliminando] = useState(false)
   const fin = useRef<HTMLDivElement>(null)
   const yo = sesion!.usuario.id
   const actual = convs.data?.find((c) => c.id === id)
@@ -44,6 +46,20 @@ export function Chat({ id }: { id?: number }) {
       const m = await api.enviarMensaje(id, texto)
       setMsgs((x) => [...x, m]); setTexto(''); convs.recargar()
     } catch (e) { toast.error((e as Error).message) } finally { setEnviando(false) }
+  }
+
+  const confirmarEliminar = async () => {
+    if (!id) return
+    setEliminando(true)
+    try {
+      await api.eliminarConversacion(id)
+      toast.ok('Conversación eliminada.')
+      setEliminar(false); setTexto('')
+      // Se quita de la lista al tiro (sin esperar la recarga) para que no se vuelva a abrir sola.
+      convs.setData((cs) => (cs ?? []).filter((c) => c.id !== id))
+      navigate('/app/chat', true)
+      convs.recargar()
+    } catch (e) { toast.error((e as Error).message) } finally { setEliminando(false) }
   }
 
   // Solo en la carga inicial: el polling recarga cada 5 s y, si aquí se mostrara <Cargando />, se desmontaría
@@ -92,6 +108,7 @@ export function Chat({ id }: { id?: number }) {
                   <small>{actual.licitacionTitulo}</small>
                 </div>
                 <Link to={`/app/licitacion/${actual.licitacionId}`} className="btn btn-soft btn-sm"><span>Ver licitación</span></Link>
+                <button className="icon-btn chat-del" onClick={() => setEliminar(true)} aria-label="Eliminar conversación" title="Eliminar conversación"><Icon name="trash" size={18} /></button>
               </header>
               <div className="chat-msgs">
                 {cargandoMsgs && msgs.length === 0 ? <Cargando /> : msgs.map((m, i) => {
@@ -117,6 +134,12 @@ export function Chat({ id }: { id?: number }) {
           )}
         </section>
       </div>
+
+      <Modal abierto={eliminar} onClose={() => setEliminar(false)} titulo="Eliminar conversación" ancho={480}
+        pie={<><Button variant="ghost" onClick={() => setEliminar(false)}>Cancelar</Button><Button variant="danger" icon="trash" loading={eliminando} onClick={confirmarEliminar}>Sí, eliminar</Button></>}>
+        <p>Se eliminará de tu lista junto con su historial de mensajes. <b>{actual?.interlocutor}</b> conservará la conversación.</p>
+        <p className="muted-p">Si te vuelven a escribir, la conversación reaparecerá solo con los mensajes nuevos.</p>
+      </Modal>
     </div>
   )
 }

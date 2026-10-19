@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS conversacion (       -- una por postulación
   licitador_id    BIGINT NOT NULL,              -- REF Usuarios
   pyme_id         BIGINT NOT NULL,              -- REF Usuarios
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  borrada_licitador_at TIMESTAMPTZ,              -- el Licitador la eliminó (solo para él); NULL = no
+  borrada_pyme_at      TIMESTAMPTZ,              -- la Pyme la eliminó (solo para ella); NULL = no
   CONSTRAINT uq_conv_postulacion UNIQUE (postulacion_id)
 );
 

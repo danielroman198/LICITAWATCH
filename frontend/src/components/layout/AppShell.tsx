@@ -73,6 +73,27 @@ const ICONO_NOTIF: Record<string, IconName> = {
 }
 export const iconoNotificacion = (tipo: string): IconName => ICONO_NOTIF[tipo] ?? 'bell'
 
+/** A qué sección lleva cada notificación al apretarla (según el tipo; el ER no guarda a qué chat o licitación se refiere). */
+export function destinoNotificacion(tipo: string, rol: Rol): string | null {
+  switch (tipo) {
+    case 'Mensaje nuevo': return '/app/chat'
+    case 'Licitación publicada':
+    case 'Postulación recibida': return '/app/licitaciones'
+    case 'Postulación aprobada':
+    case 'Postulación rechazada':
+    case 'Licitación adjudicada': return rol === 'PYME' ? '/app/postulaciones' : '/app/licitaciones'
+    case 'Pago confirmado': return '/app/suscripcion'
+    default: return null
+  }
+}
+
+/** Fila de notificación: si tiene destino es un enlace; si no, un bloque normal. */
+export function NotifItem({ n, rol, className, onIr, children }: { n: Notificacion; rol: Rol; className: string; onIr?: () => void; children: ReactNode }) {
+  const destino = destinoNotificacion(n.tipo, rol)
+  if (!destino) return <div className={className}>{children}</div>
+  return <Link to={destino} className={`${className} notif-link`} onClick={onIr}>{children}<Icon name="chevright" size={16} className="notif-go" /></Link>
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { sesion, logout } = useAuth()
   const { path } = useLocation()
@@ -175,10 +196,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div className="dropdown notif-dd">
                   <div className="dd-head"><b>Notificaciones</b><button className="link-btn" onClick={notif.marcar}>Marcar leídas</button></div>
                   {notif.lista.length === 0 ? <p className="dd-empty">Sin notificaciones</p> : notif.lista.slice(0, 5).map((n) => (
-                    <div key={n.id} className={`notif-item ${n.leida ? '' : 'unread'}`}>
+                    <NotifItem key={n.id} n={n} rol={u.rol} className={`notif-item ${n.leida ? '' : 'unread'}`} onIr={() => setCampana(false)}>
                       <span className="notif-ic"><Icon name={iconoNotificacion(n.tipo)} size={16} /></span>
                       <div><b>{n.titulo}</b><p>{n.detalle}</p><small>{hace(n.createdAt)}</small></div>
-                    </div>
+                    </NotifItem>
                   ))}
                   <Link to="/app/notificaciones" className="dd-foot">Ver todas las notificaciones</Link>
                 </div>

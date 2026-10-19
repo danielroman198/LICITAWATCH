@@ -77,13 +77,15 @@ public class ChatService {
         List<Conversacion> cs = convs.findByLicitadorIdOrPymeId(usuarioId, usuarioId);
         Map<Long, String> titulos = habilitadas(cs);
         return cs.stream().filter(c -> titulos.containsKey(c.getPostulacionId())).map(c -> {
-            var ult = msgs.findFirstByConversacionIdOrderByEnviadoAtDesc(c.getId());
+            var ult = msgs.findFirstByConversacionIdOrderByEnviadoAtDesc(c.getId()).filter(m -> m.getEnviadoAt().isAfter(c.corte(usuarioId)));
+            // La eliminó y no ha llegado nada después: no se muestra (la otra empresa la sigue viendo).
+            if (ult.isEmpty() && c.corte(usuarioId).isAfter(Instant.EPOCH)) return null;
             long otro = c.getLicitadorId().equals(usuarioId) ? c.getPymeId() : c.getLicitadorId();
             Contraparte o = contraparte(otro);
             return new ConversacionDto(c.getId(), c.getPostulacionId(), lic.getOrDefault(c.getPostulacionId(), 0L), titulos.getOrDefault(c.getPostulacionId(), "Licitación"), c.getLicitadorId(), c.getPymeId(),
                     o.nombre(), o.rut(), o.rubroId(), o.contacto(), ult.map(Mensaje::getContenido).orElse(null), ult.map(Mensaje::getEnviadoAt).orElse(null),
-                    msgs.countByConversacionIdAndEmisorIdNotAndLeidoFalse(c.getId(), usuarioId));
-        }).sorted((a, b) -> b.ultimoAt() == null ? -1 : a.ultimoAt() == null ? 1 : b.ultimoAt().compareTo(a.ultimoAt())).toList();
+                    msgs.countByConversacionIdAndEmisorIdNotAndLeidoFalseAndEnviadoAtAfter(c.getId(), usuarioId, c.corte(usuarioId)));
+        }).filter(java.util.Objects::nonNull).sorted((a, b) -> b.ultimoAt() == null ? -1 : a.ultimoAt() == null ? 1 : b.ultimoAt().compareTo(a.ultimoAt())).toList();
     }
 
     private Conversacion participante(long convId, long usuarioId) {
@@ -95,10 +97,16 @@ public class ChatService {
 
     @Transactional
     public List<Mensaje> mensajes(long convId, long usuarioId) {
-        participante(convId, usuarioId);
-        List<Mensaje> l = msgs.findByConversacionIdOrderByEnviadoAtAsc(convId);
+        Conversacion c = participante(convId, usuarioId);
+        List<Mensaje> l = msgs.findByConversacionIdAndEnviadoAtAfterOrderByEnviadoAtAsc(convId, c.corte(usuarioId));
         l.stream().filter(m -> !m.getEmisorId().equals(usuarioId) && !m.isLeido()).forEach(m -> m.setLeido(true));
         return l;
+    }
+
+    /** Elimina la conversación solo para quien lo pide (la otra empresa conserva todo). */
+    @Transactional
+    public void eliminarPara(long convId, long usuarioId) {
+        participante(convId, usuarioId).borrarPara(usuarioId, Instant.now());
     }
 
     @Transactional

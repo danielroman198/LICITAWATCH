@@ -347,6 +347,8 @@ export interface Api {
   conversaciones(): Promise<Conversacion[]>
   mensajes(conversacionId: number): Promise<Mensaje[]>
   enviarMensaje(conversacionId: number, contenido: string): Promise<Mensaje>
+  /** Elimina la conversación solo para quien la elimina; si la otra empresa vuelve a escribir, reaparece con lo nuevo. */
+  eliminarConversacion(conversacionId: number): Promise<void>
 
   // Notificaciones
   notificaciones(): Promise<Notificacion[]>

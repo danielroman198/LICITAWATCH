@@ -27,7 +27,8 @@ export interface DB {
   perfiles: Perfil[]
   licitaciones: LicitacionDB[]
   postulaciones: PostulacionDB[]
-  conversaciones: (Omit<Conversacion, 'interlocutor' | 'ultimoMensaje' | 'ultimoAt' | 'noLeidos' | 'licitacionTitulo'>)[]
+  // borrada*At: "eliminar conversación" solo para ese participante (oculta lo anterior a esa fecha)
+  conversaciones: (Omit<Conversacion, 'interlocutor' | 'ultimoMensaje' | 'ultimoAt' | 'noLeidos' | 'licitacionTitulo'> & { borradaLicitadorAt?: string; borradaPymeAt?: string })[]
   mensajes: Mensaje[]
   notificaciones: NotificacionDB[]
   suscripciones: SuscripcionDB[]

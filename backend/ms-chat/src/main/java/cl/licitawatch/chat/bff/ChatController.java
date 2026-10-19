@@ -22,6 +22,9 @@ public class ChatController {
     @PostMapping("/api/chat/conversaciones/{id}/mensajes") @ResponseStatus(HttpStatus.CREATED)
     public Mensaje enviar(HttpServletRequest r, @PathVariable long id, @RequestBody Envio b) { return svc.enviar(id, Auth.exigir(r, "LICITADOR", "PYME").usuarioId(), b.contenido()); }
 
+    @DeleteMapping("/api/chat/conversaciones/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void eliminar(HttpServletRequest r, @PathVariable long id) { svc.eliminarPara(id, Auth.exigir(r, "LICITADOR", "PYME").usuarioId()); }
+
     @GetMapping("/internal/conversaciones/por-postulaciones") public Map<Long, Long> porPostulaciones(@RequestParam List<Long> ids) { return svc.porPostulaciones(ids); }
     @PostMapping("/internal/conversaciones") public Map<String, Long> crear(@RequestBody NuevaConversacion d) { return svc.crear(d); }
 }

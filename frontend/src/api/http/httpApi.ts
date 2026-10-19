@@ -83,6 +83,7 @@ export const httpApi: Api = {
   conversaciones: () => get('/api/chat/conversaciones'),
   mensajes: (id) => get(`/api/chat/conversaciones/${id}/mensajes`),
   enviarMensaje: (id, contenido) => post(`/api/chat/conversaciones/${id}/mensajes`, { contenido }),
+  async eliminarConversacion(id) { await req('DELETE', `/api/chat/conversaciones/${id}`) },
 
   // El modelo ER de Notificaciones no guarda "leída": el estado se lleva en el navegador como "último id visto".
   async notificaciones() {

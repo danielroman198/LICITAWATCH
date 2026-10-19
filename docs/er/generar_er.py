@@ -149,7 +149,7 @@ svg.lineas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1
 """
 
 # Destacar lo agregado desde la versión anterior del ER (se ve en amarillo).
-NUEVO = {('usuarios', 'usuario', 'email_verificado')}
+NUEVO = {('chat', 'conversacion', 'borrada_licitador_at'), ('chat', 'conversacion', 'borrada_pyme_at')}
 
 
 def diagrama(base, i_pag):
@@ -226,7 +226,7 @@ def mapa(bases):
            f'<path d="M0,0 L10,4 L0,8 z" fill="#c0392b"/></marker></defs>{flechas}</svg>')
     return ('<section class="pag"><h1>LicitaWatch · Modelo Entidad-Relación implementado</h1>'
             '<div class="sub">5 bases de datos PostgreSQL (una por microservicio). LicitAsist (ms-asistente) no tiene base de datos: es externo (Groq). '
-            'Generado desde db/*.sql con docs/er/generar_er.py. En amarillo: lo agregado en esta versión (usuario.email_verificado: verificación del correo al registrarse).</div>'
+            'Generado desde db/*.sql con docs/er/generar_er.py. En amarillo: lo agregado en esta versión (conversacion.borrada_licitador_at y borrada_pyme_at: eliminar conversación solo para mí).</div>'
             '<h3>Mapa de referencias entre bases (REF, sin llave foránea, validadas por REST)</h3>'
             f'<div class="lienzo" style="top:150px">{svg}{grupos}</div>'
             '<div class="nota">Línea punteada roja = columna REF: guarda el id de otra base/microservicio, sin FK. Dentro de cada base las relaciones sí son '

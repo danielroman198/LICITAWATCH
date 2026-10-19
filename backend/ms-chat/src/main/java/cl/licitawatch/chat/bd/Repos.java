@@ -12,8 +12,8 @@ public final class Repos {
         List<Conversacion> findByPostulacionIdIn(java.util.Collection<Long> postulacionIds);
     }
     public interface MensajeRepo extends JpaRepository<Mensaje, Long> {
-        List<Mensaje> findByConversacionIdOrderByEnviadoAtAsc(Long conversacionId);
         Optional<Mensaje> findFirstByConversacionIdOrderByEnviadoAtDesc(Long conversacionId);
-        long countByConversacionIdAndEmisorIdNotAndLeidoFalse(Long conversacionId, Long emisorId);
+        List<Mensaje> findByConversacionIdAndEnviadoAtAfterOrderByEnviadoAtAsc(Long conversacionId, java.time.Instant desde);
+        long countByConversacionIdAndEmisorIdNotAndLeidoFalseAndEnviadoAtAfter(Long conversacionId, Long emisorId, java.time.Instant desde);
     }
 }

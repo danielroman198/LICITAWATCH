@@ -109,6 +109,9 @@ function aPostulacion(db: DB, p: PostulacionDB): Postulacion {
   }
 }
 
+/** Desde cuándo ve este usuario la conversación (si la eliminó, lo anterior queda oculto solo para él). */
+const corte = (c: DB['conversaciones'][number], usuarioId: number) => (c.licitadorId === usuarioId ? c.borradaLicitadorAt : c.borradaPymeAt) ?? ''
+
 function sesionDe(db: DB, usuarioId: number, token: string): Sesion {
   const u = db.usuarios.find((x) => x.id === usuarioId)!
   const { password: _p, ...usuario } = u
@@ -484,7 +487,7 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
     const db = loadDb()
     const u = exigir(db, 'LICITADOR', 'PYME')
     return db.conversaciones.filter((c) => c.licitadorId === u.id || c.pymeId === u.id).map((c): Conversacion => {
-      const msgs = db.mensajes.filter((m) => m.conversacionId === c.id).sort((a, b) => a.enviadoAt.localeCompare(b.enviadoAt))
+      const msgs = db.mensajes.filter((m) => m.conversacionId === c.id && m.enviadoAt > corte(c, u.id)).sort((a, b) => a.enviadoAt.localeCompare(b.enviadoAt))
       const ult = msgs[msgs.length - 1]
       const otro = c.licitadorId === u.id ? c.pymeId : c.licitadorId
       return {
@@ -498,7 +501,8 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
         ultimoAt: ult?.enviadoAt,
         noLeidos: msgs.filter((m) => m.emisorId !== u.id && !m.leido).length,
       }
-    }).sort((a, b) => (b.ultimoAt ?? '').localeCompare(a.ultimoAt ?? ''))
+    }).filter((c) => !(corte(db.conversaciones.find((x) => x.id === c.id)!, u.id) && !c.ultimoAt))   // eliminada y sin mensajes nuevos
+      .sort((a, b) => (b.ultimoAt ?? '').localeCompare(a.ultimoAt ?? ''))
   },
   async mensajes(conversacionId) {
     await delay(100)
@@ -507,9 +511,19 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
     const c = db.conversaciones.find((x) => x.id === conversacionId)
     if (!c || (c.licitadorId !== u.id && c.pymeId !== u.id)) throw new ApiError('No tienes acceso a esta conversación.', 403)
     let cambio = false
-    db.mensajes.filter((m) => m.conversacionId === c.id && m.emisorId !== u.id && !m.leido).forEach((m) => { m.leido = true; cambio = true })
+    const visibles = db.mensajes.filter((m) => m.conversacionId === c.id && m.enviadoAt > corte(c, u.id))
+    visibles.filter((m) => m.emisorId !== u.id && !m.leido).forEach((m) => { m.leido = true; cambio = true })
     if (cambio) saveDb()
-    return clon(db.mensajes.filter((m) => m.conversacionId === c.id).sort((a, b) => a.enviadoAt.localeCompare(b.enviadoAt)))
+    return clon(visibles.sort((a, b) => a.enviadoAt.localeCompare(b.enviadoAt)))
+  },
+  async eliminarConversacion(conversacionId) {
+    await delay(300)
+    const db = loadDb()
+    const u = exigir(db, 'LICITADOR', 'PYME')
+    const c = db.conversaciones.find((x) => x.id === conversacionId)
+    if (!c || (c.licitadorId !== u.id && c.pymeId !== u.id)) throw new ApiError('No tienes acceso a esta conversación.', 403)
+    if (c.licitadorId === u.id) c.borradaLicitadorAt = ahora(); else c.borradaPymeAt = ahora()
+    saveDb()
   },
   async enviarMensaje(conversacionId, contenido) {
     await delay(150)

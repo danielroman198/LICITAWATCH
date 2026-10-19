@@ -5,7 +5,8 @@ import { Link } from '../../lib/router'
 import { Badge, tonoEstado } from '../ui/ui'
 import { useCatalogos } from '../../context/AuthContext'
 import { diasHasta, hace, rangoPresupuesto } from '../../lib/format'
-import { iconoNotificacion, useNotificaciones } from '../layout/AppShell'
+import { NotifItem, iconoNotificacion, useNotificaciones } from '../layout/AppShell'
+import { useAuth } from '../../context/AuthContext'
 
 /* ---------- Carrusel superior ---------- */
 export interface Slide { chip: string; icon: IconName; titulo: string; texto: string; tono: 'blue' | 'teal' | 'violet' | 'green'; to?: string; cta?: string }
@@ -70,6 +71,7 @@ export function TenderCard({ l, acciones }: { l: Licitacion; acciones?: ReactNod
 /* ---------- Panel de notificaciones (columna derecha) ---------- */
 export function NotifPanel({ limite = 4 }: { limite?: number }) {
   const { lista, marcar } = useNotificaciones()
+  const rol = useAuth().sesion!.usuario.rol
   return (
     <div className="card card-pad notif-panel">
       <div className="card-header">
@@ -77,10 +79,10 @@ export function NotifPanel({ limite = 4 }: { limite?: number }) {
         <Link to="/app/notificaciones" className="link">Ver todas</Link>
       </div>
       {lista.length === 0 ? <p className="muted-p">Todo al día. No tienes notificaciones.</p> : lista.slice(0, limite).map((n) => (
-        <div key={n.id} className={`notif-item ${n.leida ? '' : 'unread'}`}>
+        <NotifItem key={n.id} n={n} rol={rol} className={`notif-item ${n.leida ? '' : 'unread'}`}>
           <span className="notif-ic"><Icon name={iconoNotificacion(n.tipo)} size={16} /></span>
           <div><b>{n.titulo}</b><p>{n.detalle}</p><small>{hace(n.createdAt)}</small></div>
-        </div>
+        </NotifItem>
       ))}
       {lista.some((n) => !n.leida) && <button className="btn btn-soft btn-sm btn-block" onClick={marcar}>Marcar todas como leídas</button>}
     </div>

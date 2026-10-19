@@ -95,3 +95,5 @@ td.row-actions { display: table-cell; text-align: right; white-space: nowrap; } 
 .limite-precio { font-size: 15px; color: var(--muted); } .limite-precio b { font-size: 22px; color: var(--text); }
 .limite-nota { font-size: 13px; color: var(--subtle); }
 .gestion { display: flex; flex-direction: column; gap: 10px; } .gestion .muted-p { display: flex; gap: 6px; align-items: flex-start; } .gestion .muted-p svg { flex: none; margin-top: 3px; }
+.chat-item-contacto { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-head .chat-head-datos { display: flex; flex-wrap: wrap; gap: 4px 12px; white-space: normal; } .chat-head-datos span { display: inline-flex; align-items: center; gap: 4px; } .chat-head-datos b { color: var(--text); font-weight: 600; }

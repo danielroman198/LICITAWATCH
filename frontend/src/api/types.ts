@@ -153,7 +153,10 @@ export interface Conversacion {
   licitacionTitulo: string
   licitadorId: number
   pymeId: number
-  interlocutor: string
+  interlocutor: string          // razón social de la otra empresa
+  interlocutorRut?: string      // RUT de esa empresa (formateado)
+  interlocutorRubroId?: number  // rubro de esa empresa (id del catálogo de rubros)
+  interlocutorContacto?: string // persona de contacto con quien se chatea
   ultimoMensaje?: string
   ultimoAt?: string
   noLeidos: number

@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../../api'
 import type { Mensaje } from '../../api/types'
 import { Avatar, Button, Card, Cargando, EmptyState, PageHeader, useAsync, useToast } from '../../components/ui/ui'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth, useCatalogos } from '../../context/AuthContext'
 import { Icon } from '../../lib/icons'
 import { Link, navigate } from '../../lib/router'
 import { fechaCorta, hace } from '../../lib/format'
 
 export function Chat({ id }: { id?: number }) {
   const { sesion } = useAuth()
+  const cat = useCatalogos()
   const toast = useToast()
   const convs = useAsync(() => api.conversaciones(), [])
   const [msgs, setMsgs] = useState<Mensaje[]>([])
@@ -65,6 +66,7 @@ export function Chat({ id }: { id?: number }) {
               <Avatar nombre={c.interlocutor} size={42} />
               <div className="chat-item-body">
                 <div className="chat-item-top"><b>{c.interlocutor}</b>{c.ultimoAt && <small>{hace(c.ultimoAt)}</small>}</div>
+                {c.interlocutorContacto && <small className="chat-item-contacto"><Icon name="user" size={12} /> {c.interlocutorContacto}</small>}
                 <small className="chat-item-tender">{c.licitacionTitulo}</small>
                 <span className="chat-item-last">{c.ultimoMensaje}</span>
               </div>
@@ -78,7 +80,15 @@ export function Chat({ id }: { id?: number }) {
               <header className="chat-head">
                 <button className="icon-btn chat-back" onClick={() => navigate('/app/chat')} aria-label="Volver"><Icon name="arrowleft" size={20} /></button>
                 <Avatar nombre={actual.interlocutor} size={42} />
-                <div><b>{actual.interlocutor}</b><small>{actual.licitacionTitulo}</small></div>
+                <div>
+                  <b>{actual.interlocutor}</b>
+                  <small className="chat-head-datos">
+                    {actual.interlocutorRut && <span>RUT {actual.interlocutorRut}</span>}
+                    {actual.interlocutorRubroId && <span><Icon name="tag" size={12} /> {cat.rubro(actual.interlocutorRubroId)}</span>}
+                    {actual.interlocutorContacto && <span><Icon name="user" size={12} /> Contacto: <b>{actual.interlocutorContacto}</b></span>}
+                  </small>
+                  <small>{actual.licitacionTitulo}</small>
+                </div>
                 <Link to={`/app/licitacion/${actual.licitacionId}`} className="btn btn-soft btn-sm"><span>Ver licitación</span></Link>
               </header>
               <div className="chat-msgs">

@@ -4,6 +4,7 @@ import cl.licitawatch.common.ApiException;
 import cl.licitawatch.usuarios.bd.*;
 import cl.licitawatch.usuarios.bd.Repos.UsuarioRepo;
 import cl.licitawatch.usuarios.bs.PerfilService;
+import cl.licitawatch.usuarios.bs.Rut;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -23,6 +24,7 @@ public class InternalController {
         m.put("id", id); m.put("email", u.getEmail()); m.put("rol", u.getRolNombre()); m.put("activo", u.isActivo());
         m.put("nombre", perfiles.nombre(u)); m.put("rubroId", p != null ? p.getRubroId() : null);
         m.put("tamanoEmpresaId", p != null ? p.getTamanoEmpresaId() : null); m.put("ciudadId", p != null ? p.getCiudadId() : null); m.put("emailContacto", p != null ? p.getEmailContacto() : u.getEmail());
+        m.put("rut", p != null ? Rut.formatear(p.getRut()) : null); m.put("nombreContacto", p != null ? p.getNombreContacto() : null);   // p. ej. para el chat
         return m;
     }
 }

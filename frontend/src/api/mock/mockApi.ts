@@ -8,7 +8,7 @@ import { ERROR_SIN_VERIFICAR } from '../types'
 import { CIUDADES, REGIONES, RUBROS, TAMANOS } from './catalogs'
 import { PLANES, loadDb, nextId, planPorId, resetDb, saveDb, type DB, type LicitacionDB, type PostulacionDB, type UsuarioDB } from './db'
 import { consultarSiiMock } from './sii'
-import { limpiarRut, validarRut, esRutEmpresa, esRutPersona } from '../../lib/rut'
+import { formatearRut, limpiarRut, validarRut, esRutEmpresa, esRutPersona } from '../../lib/rut'
 import { mesCorto, validarEmail, validarPassword } from '../../lib/format'
 
 const TOKEN_KEY = 'lw_token'
@@ -491,6 +491,9 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
         ...clon(c),
         licitacionTitulo: db.licitaciones.find((l) => l.id === c.licitacionId)?.titulo ?? '',
         interlocutor: nombreDe(db, otro),
+        interlocutorRut: (() => { const r = db.perfiles.find((p) => p.usuarioId === otro)?.rutEmpresa; return r ? formatearRut(r) : undefined })(),
+        interlocutorRubroId: db.perfiles.find((p) => p.usuarioId === otro)?.rubroId,
+        interlocutorContacto: db.perfiles.find((p) => p.usuarioId === otro)?.nombreContacto,
         ultimoMensaje: ult?.contenido,
         ultimoAt: ult?.enviadoAt,
         noLeidos: msgs.filter((m) => m.emisorId !== u.id && !m.leido).length,

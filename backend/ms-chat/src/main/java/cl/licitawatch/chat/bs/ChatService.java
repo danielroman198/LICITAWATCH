@@ -15,7 +15,10 @@ import java.util.Map;
 
 @Service
 public class ChatService {
-    public record ConversacionDto(Long id, Long postulacionId, Long licitacionId, String licitacionTitulo, Long licitadorId, Long pymeId, String interlocutor, String ultimoMensaje, Instant ultimoAt, long noLeidos) {}
+    /** interlocutor = razón social de la otra empresa; se agregan su RUT, rubro (id del catálogo) y la persona de contacto (con quién se chatea). */
+    public record ConversacionDto(Long id, Long postulacionId, Long licitacionId, String licitacionTitulo, Long licitadorId, Long pymeId, String interlocutor,
+                                  String interlocutorRut, Integer interlocutorRubroId, String interlocutorContacto, String ultimoMensaje, Instant ultimoAt, long noLeidos) {}
+    private record Contraparte(String nombre, String rut, Integer rubroId, String contacto) {}
     public record NuevaConversacion(Long postulacionId, Long licitadorId, Long pymeId) {}
 
     private final ConversacionRepo convs; private final MensajeRepo msgs; private final InternalClient interno; private final String urlNotif, urlLicitaciones, urlUsuarios;
@@ -62,9 +65,13 @@ public class ChatService {
     }
     private final Map<Long, Long> lic = new java.util.concurrent.ConcurrentHashMap<>();
 
-    private String nombre(long usuarioId) {
-        try { return interno.get(urlUsuarios + "/internal/usuarios/" + usuarioId + "/resumen", JsonNode.class).path("nombre").asText("Usuario"); } catch (Exception e) { return "Usuario"; }
+    private Contraparte contraparte(long usuarioId) {
+        try {
+            JsonNode n = interno.get(urlUsuarios + "/internal/usuarios/" + usuarioId + "/resumen", JsonNode.class);
+            return new Contraparte(n.path("nombre").asText("Usuario"), texto(n, "rut"), n.hasNonNull("rubroId") ? n.get("rubroId").asInt() : null, texto(n, "nombreContacto"));
+        } catch (Exception e) { return new Contraparte("Usuario", null, null, null); }
     }
+    private static String texto(JsonNode n, String campo) { return n.hasNonNull(campo) ? n.get(campo).asText() : null; }
 
     public List<ConversacionDto> de(long usuarioId) {
         List<Conversacion> cs = convs.findByLicitadorIdOrPymeId(usuarioId, usuarioId);
@@ -72,8 +79,9 @@ public class ChatService {
         return cs.stream().filter(c -> titulos.containsKey(c.getPostulacionId())).map(c -> {
             var ult = msgs.findFirstByConversacionIdOrderByEnviadoAtDesc(c.getId());
             long otro = c.getLicitadorId().equals(usuarioId) ? c.getPymeId() : c.getLicitadorId();
+            Contraparte o = contraparte(otro);
             return new ConversacionDto(c.getId(), c.getPostulacionId(), lic.getOrDefault(c.getPostulacionId(), 0L), titulos.getOrDefault(c.getPostulacionId(), "Licitación"), c.getLicitadorId(), c.getPymeId(),
-                    nombre(otro), ult.map(Mensaje::getContenido).orElse(null), ult.map(Mensaje::getEnviadoAt).orElse(null),
+                    o.nombre(), o.rut(), o.rubroId(), o.contacto(), ult.map(Mensaje::getContenido).orElse(null), ult.map(Mensaje::getEnviadoAt).orElse(null),
                     msgs.countByConversacionIdAndEmisorIdNotAndLeidoFalse(c.getId(), usuarioId));
         }).sorted((a, b) -> b.ultimoAt() == null ? -1 : a.ultimoAt() == null ? 1 : b.ultimoAt().compareTo(a.ultimoAt())).toList();
     }

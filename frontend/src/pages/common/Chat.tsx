@@ -46,7 +46,9 @@ export function Chat({ id }: { id?: number }) {
     } catch (e) { toast.error((e as Error).message) } finally { setEnviando(false) }
   }
 
-  if (convs.loading) return <Cargando />
+  // Solo en la carga inicial: el polling recarga cada 5 s y, si aquí se mostrara <Cargando />, se desmontaría
+  // el chat completo (el campo de texto pierde el foco y se corta la escritura).
+  if (convs.loading && !convs.data) return <Cargando />
   if (!convs.data || convs.data.length === 0) {
     return (
       <div className="stack">

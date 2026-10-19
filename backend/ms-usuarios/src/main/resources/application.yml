@@ -11,7 +11,7 @@ spring:
 lw:
   jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
   internal-key: ${INTERNAL_KEY:clave-interna-dev}
-  publicas: ${LW_PUBLICAS:/api/auth/login,/api/auth/recuperar,/api/auth/restablecer,/api/usuarios/registro,/api/usuarios/disponibilidad,/api/sii,/api/catalogos}
+  publicas: ${LW_PUBLICAS:/api/auth/login,/api/auth/recuperar,/api/auth/restablecer,/api/auth/verificar,/api/auth/reenviar-verificacion,/api/usuarios/registro,/api/usuarios/disponibilidad,/api/sii,/api/catalogos}
   urls:
     usuarios: ${URL_USUARIOS:http://localhost:8081}
     licitaciones: ${URL_LICITACIONES:http://localhost:8082}

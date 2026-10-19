@@ -1,8 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, USE_MOCK, mockApi } from '../../api'
+import { ApiError } from '../../api/errors'
+import { ERROR_SIN_VERIFICAR } from '../../api/types'
 import { Link, navigate, useLocation } from '../../lib/router'
 import { Logo } from '../../components/layout/Logo'
-import { MediaVideo, TabletDemo } from '../../components/layout/MediaVideo'
+import { LoginEnVivo } from '../../components/layout/EscenasAuth'
+import { MediaVideo } from '../../components/layout/MediaVideo'
 import { Button, Field, Input, useAsync, useToast, Cargando, EmptyState } from '../../components/ui/ui'
 import { Icon } from '../../lib/icons'
 import { useAuth } from '../../context/AuthContext'
@@ -19,11 +22,22 @@ const DEMOS = [
 export function Login() {
   const { login } = useAuth()
   const toast = useToast()
+  const { search } = useLocation()
+  const recienVerificada = search.get('verificada') === '1'
   const [email, setEmail] = useState('')
   const [pass, setPass] = useState('')
   const [ver, setVer] = useState(false)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
+  const [sinVerificar, setSinVerificar] = useState(false)
+  const [reenviando, setReenviando] = useState(false)
+
+  const reenviar = async () => {
+    setReenviando(true)
+    try { await api.reenviarVerificacion(email); toast.ok('Te enviamos un nuevo enlace de verificación.') }
+    catch (err) { toast.error((err as Error).message) }
+    finally { setReenviando(false) }
+  }
 
   const enviar = async (e?: FormEvent, creds?: { email: string; pass: string }) => {
     e?.preventDefault()
@@ -31,13 +45,14 @@ export function Login() {
     const pw = creds?.pass ?? pass
     if (!validarEmail(em)) { setError('Ingresa un correo válido'); return }
     if (!pw) { setError('Ingresa tu contraseña'); return }
-    setError(''); setCargando(true)
+    setError(''); setSinVerificar(false); setCargando(true)
     try {
       await login(em, pw)
       toast.ok('¡Bienvenido de vuelta!')
       navigate('/app', true)
     } catch (err) {
       setError((err as Error).message)
+      setSinVerificar(err instanceof ApiError && err.status === ERROR_SIN_VERIFICAR)
     } finally {
       setCargando(false)
     }
@@ -46,11 +61,12 @@ export function Login() {
   return (
     <div className="auth auth-login">
       <aside className="auth-video">
-        <MediaVideo src="/media/login.mp4" fallback={<TabletDemo />} className="auth-video-el" />
-        <div className="auth-video-caption">
-          <Logo size={34} claro />
-          <p>Todas tus licitaciones, en la palma de tu mano.</p>
-        </div>
+        <MediaVideo src="/media/login.mp4" fallback={<LoginEnVivo />} className="auth-video-el">
+          <div className="auth-video-caption">
+            <Logo size={34} claro />
+            <p>Todas tus licitaciones, en la palma de tu mano.</p>
+          </div>
+        </MediaVideo>
       </aside>
       <div className="auth-form-side">
         <div className="auth-form narrow">
@@ -58,6 +74,7 @@ export function Login() {
           <div className="auth-logo"><Logo size={40} /></div>
           <h1>Inicia sesión</h1>
           <p className="auth-sub">Ingresa tus credenciales para acceder a tu panel.</p>
+          {recienVerificada && <div className="alert alert-ok"><Icon name="checkcircle" size={18} />¡Tu cuenta fue verificada! Ya puedes iniciar sesión.</div>}
           <form onSubmit={(e) => enviar(e)} noValidate>
             <Field label="Correo electrónico" required><Input icon="mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.cl" autoComplete="email" autoFocus /></Field>
             <Field label="Contraseña" required>
@@ -65,7 +82,15 @@ export function Login() {
                 right={<button type="button" className="icon-btn" onClick={() => setVer((v) => !v)} aria-label="Mostrar contraseña"><Icon name="eye" size={18} /></button>} />
             </Field>
             <div className="login-row"><Link to="/recuperar" className="link">¿Olvidaste tu contraseña?</Link></div>
-            {error && <div className="alert alert-err"><Icon name="alert" size={18} />{error}</div>}
+            {error && (sinVerificar ? (
+              <div className="alert alert-warn">
+                <Icon name="mail" size={18} />
+                <div className="alert-body">
+                  <span>{error}</span>
+                  <button type="button" className="link-btn" onClick={reenviar} disabled={reenviando}>{reenviando ? 'Enviando…' : 'Reenviar correo de verificación'}</button>
+                </div>
+              </div>
+            ) : <div className="alert alert-err"><Icon name="alert" size={18} />{error}</div>)}
             <Button type="submit" size="lg" block loading={cargando} iconRight="arrowright">Iniciar sesión</Button>
           </form>
           <p className="auth-foot">¿Aún no tienes cuenta? <Link to="/registro">Regístrate gratis</Link></p>
@@ -122,6 +147,73 @@ export function Recover() {
               <Button type="submit" size="lg" block loading={cargando}>Enviar enlace de recuperación</Button>
             </form>
           </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Después del registro: la cuenta queda pendiente hasta abrir el enlace del correo. */
+export function RevisaCorreo() {
+  const { search } = useLocation()
+  const email = search.get('email') ?? ''
+  const toast = useToast()
+  const [enviando, setEnviando] = useState(false)
+  const reenviar = async () => {
+    setEnviando(true)
+    try { await api.reenviarVerificacion(email); toast.ok('Te enviamos un nuevo enlace de verificación.') }
+    catch (err) { toast.error((err as Error).message) }
+    finally { setEnviando(false) }
+  }
+  return (
+    <div className="auth auth-center">
+      <div className="auth-card">
+        <div className="auth-logo"><Logo size={40} /></div>
+        <div className="sent">
+          <span className="sent-ic"><Icon name="mail" size={30} /></span>
+          <h1>Verifica tu correo</h1>
+          <p>Tu cuenta fue creada. Enviamos un enlace de activación a {email ? <b>{email}</b> : 'tu correo'}. Ábrelo para activar tu cuenta; vence en 24 horas.</p>
+          <p className="sent-nota">¿No te llegó? Revisa la carpeta de spam o pide uno nuevo.</p>
+          {USE_MOCK && <Link to="/bandeja" className="btn btn-soft btn-md"><Icon name="inbox" size={18} /><span>Abrir bandeja simulada</span></Link>}
+          {email && <Button variant="ghost" icon="refresh" loading={enviando} onClick={reenviar}>Reenviar correo</Button>}
+          <Link to="/login" className="btn btn-primary btn-md"><span>Ir a iniciar sesión</span></Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Destino del enlace del correo: /verificar?token=… Al terminar se va al login para ingresar las credenciales. */
+export function Verificar() {
+  const { search } = useLocation()
+  const token = search.get('token') ?? ''
+  const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>(token ? 'cargando' : 'error')
+  const [error, setError] = useState(token ? '' : 'El enlace no es válido. Solicita uno nuevo al iniciar sesión.')
+  const hecho = useRef(false)   // en desarrollo React monta dos veces: verificamos una sola vez
+  useEffect(() => {
+    if (!token || hecho.current) return
+    hecho.current = true
+    api.verificarCuenta(token).then(() => setEstado('ok')).catch((err) => { setError((err as Error).message); setEstado('error') })
+  }, [token])
+  return (
+    <div className="auth auth-center">
+      <div className="auth-card">
+        <div className="auth-logo"><Logo size={40} /></div>
+        {estado === 'cargando' ? <Cargando /> : estado === 'ok' ? (
+          <div className="sent">
+            <span className="sent-ic ok"><Icon name="checkcircle" size={30} /></span>
+            <h1>¡Cuenta verificada!</h1>
+            <p>Tu correo quedó confirmado. Ahora ingresa con tu correo y contraseña.</p>
+            <Link to="/login?verificada=1" className="btn btn-primary btn-lg"><span>Iniciar sesión</span></Link>
+          </div>
+        ) : (
+          <div className="sent">
+            <span className="sent-ic err"><Icon name="xcircle" size={30} /></span>
+            <h1>No pudimos verificar tu cuenta</h1>
+            <p>{error}</p>
+            <p className="sent-nota">Intenta iniciar sesión: si tu cuenta sigue pendiente, podrás pedir un enlace nuevo.</p>
+            <Link to="/login" className="btn btn-primary btn-md"><span>Ir a iniciar sesión</span></Link>
+          </div>
         )}
       </div>
     </div>
@@ -195,7 +287,7 @@ export function Bandeja() {
                   <div className="mail-top"><b>{m.asunto}</b><small>{fechaHora(m.fecha)}</small></div>
                   <small className="mail-to">Para: {m.para}</small>
                   <p>{m.cuerpo}</p>
-                  {m.enlace && <a className="btn btn-primary btn-sm" href={m.enlace}><span>Restablecer contraseña</span><Icon name="arrowright" size={16} /></a>}
+                  {m.enlace && <a className="btn btn-primary btn-sm" href={m.enlace}><span>{m.etiqueta ?? 'Restablecer contraseña'}</span><Icon name="arrowright" size={16} /></a>}
                 </article>
               ))}
             </div>

@@ -1,10 +1,12 @@
 import { useState, type ReactNode } from 'react'
 
-/** Video (hecho con IA) con respaldo animado si el archivo no existe. */
-export function MediaVideo({ src, poster, fallback, className = '' }: { src: string; poster?: string; fallback: ReactNode; className?: string }) {
+/** Video con respaldo animado si el archivo no existe. `children` se dibuja encima del video solo cuando este carga. */
+export function MediaVideo({ src, poster, fallback, className = '', onFalla, children }: { src: string; poster?: string; fallback: ReactNode; className?: string; onFalla?: () => void; children?: ReactNode }) {
   const [falla, setFalla] = useState(false)
+  const fallar = () => { setFalla(true); onFalla?.() }
   if (falla) return <>{fallback}</>
   return (
+    <>
     <video
       className={className}
       src={src}
@@ -14,10 +16,12 @@ export function MediaVideo({ src, poster, fallback, className = '' }: { src: str
       loop
       playsInline
       preload="auto"
-      onError={() => setFalla(true)}
+      onError={fallar}
     >
-      <source src={src} type="video/mp4" onError={() => setFalla(true)} />
+      <source src={src} type="video/mp4" onError={fallar} />
     </video>
+    {children}
+    </>
   )
 }
 

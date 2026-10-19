@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS usuario (                -- 1 rol -> N usuarios
   email      VARCHAR(160) NOT NULL,
   password   VARCHAR(255) NOT NULL,                 -- hash bcrypt
   rol_id     INTEGER NOT NULL REFERENCES rol(id),
-  activo     BOOLEAN NOT NULL DEFAULT TRUE,
+  activo     BOOLEAN NOT NULL DEFAULT TRUE,             -- FALSE = bloqueada por el administrador
+  email_verificado BOOLEAN NOT NULL DEFAULT TRUE,      -- FALSE = registrada sin confirmar el correo (no puede iniciar sesión)
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   foto       TEXT,                                  -- foto de perfil (data URL JPEG 256x256); NULL = se muestran las iniciales
   CONSTRAINT uq_usuario_email UNIQUE (email)

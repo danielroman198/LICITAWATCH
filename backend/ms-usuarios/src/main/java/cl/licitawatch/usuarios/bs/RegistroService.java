@@ -1,15 +1,14 @@
 package cl.licitawatch.usuarios.bs;
 
 import cl.licitawatch.common.ApiException;
-import cl.licitawatch.common.InternalClient;
-import cl.licitawatch.common.JwtService;
 import cl.licitawatch.usuarios.ambassador.SiiAmbassador;
 import cl.licitawatch.usuarios.bd.*;
 import cl.licitawatch.usuarios.bd.Repos.*;
 import cl.licitawatch.usuarios.bff.Dto.*;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 
@@ -18,13 +17,11 @@ public class RegistroService {
     private final UsuarioRepo usuarios; private final RolRepo roles; private final LicitadorRepo licitadores; private final PymeRepo pymes;
     private final RubroRepo rubros; private final CiudadRepo ciudades; private final TamanoRepo tamanos;
     private final PerfilService perfiles; private final AuthService auth; private final SiiAmbassador sii;
-    private final JwtService jwt; private final InternalClient interno; private final String urlNotif;
 
     public RegistroService(UsuarioRepo usuarios, RolRepo roles, LicitadorRepo licitadores, PymeRepo pymes, RubroRepo rubros, CiudadRepo ciudades, TamanoRepo tamanos,
-                           PerfilService perfiles, AuthService auth, SiiAmbassador sii, JwtService jwt, InternalClient interno,
-                           @Value("${lw.urls.notificaciones}") String urlNotif) {
+                           PerfilService perfiles, AuthService auth, SiiAmbassador sii) {
         this.usuarios = usuarios; this.roles = roles; this.licitadores = licitadores; this.pymes = pymes; this.rubros = rubros; this.ciudades = ciudades; this.tamanos = tamanos;
-        this.perfiles = perfiles; this.auth = auth; this.sii = sii; this.jwt = jwt; this.interno = interno; this.urlNotif = urlNotif;
+        this.perfiles = perfiles; this.auth = auth; this.sii = sii;
     }
 
     public boolean emailDisponible(String email) { return !usuarios.existsByEmailIgnoreCase(email.trim()); }
@@ -34,9 +31,10 @@ public class RegistroService {
     /**
      * Flujo POST del ER: una transacción con INSERT en usuario y luego en licitador o pyme.
      * Si falla cualquier INSERT se hace rollback completo. 201 / 400 / 409.
+     * La cuenta queda sin verificar: no se inicia sesión y se envía el enlace de verificación al correo de acceso.
      */
     @Transactional
-    public SesionDto registrar(String rol, Registro d) {
+    public RegistroOk registrar(String rol, Registro d) {
         String msg = AuthService.validarPassword(d.password());
         if (msg != null) throw ApiException.invalido(msg);
         String rut = Rut.limpiar(d.rutEmpresa());
@@ -56,6 +54,7 @@ public class RegistroService {
         Usuario u = new Usuario();
         u.setEmail(d.email().trim().toLowerCase()); u.setPassword(auth.hash(d.password()));
         u.setRol(roles.findByNombre(rol).orElseThrow(() -> ApiException.invalido("Rol inexistente")));
+        u.setEmailVerificado(false);
         u = usuarios.save(u);
 
         PerfilBase p = pyme ? new Pyme() : new Licitador();
@@ -65,9 +64,12 @@ public class RegistroService {
         p.setDescripcionEmpresa(d.descripcionEmpresa() == null ? "" : d.descripcionEmpresa()); p.setSitioWeb(d.sitioWeb());
         if (pyme) { ((Pyme) p).setTamanoEmpresaId(d.tamanoEmpresaId()); pymes.save((Pyme) p); } else licitadores.save((Licitador) p);
 
-        interno.notificar(urlNotif, u.getId(), "CORREO", "¡Bienvenido a LicitaWatch!",
-                "Tu cuenta de " + (pyme ? "Pyme" : "Licitador") + " fue creada. Ya puedes ingresar a tu panel.", true);
-        return auth.sesion(u, jwt.emitir(u.getId(), rol));
+        // Después del COMMIT: ms-notificaciones consulta el correo del usuario a /internal/usuarios/{id}, y antes del commit aún no existe.
+        Usuario creado = u;
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override public void afterCommit() { auth.enviarVerificacion(creado); }
+        });
+        return new RegistroOk(u.getEmail(), "Te enviamos un correo para verificar tu cuenta");
     }
 
     @Transactional

@@ -9,6 +9,9 @@ public final class Dto {
     public record Login(@NotBlank String email, @NotBlank String password) {}
     public record Recuperar(@NotBlank String email) {}
     public record Restablecer(@NotBlank String token, @NotBlank String password) {}
+    public record Verificar(@NotBlank String token) {}
+    /** Respuesta del registro: la cuenta queda sin verificar y no se inicia sesión. */
+    public record RegistroOk(String email, String mensaje) {}
     public record Estado(boolean activo) {}
 
     public record Registro(
@@ -20,7 +23,7 @@ public final class Dto {
     public record PerfilEdicion(String razonSocial, String giro, Integer rubroId, Integer tamanoEmpresaId, Integer ciudadId, String nombreContacto,
                                 String emailContacto, String telefono, String sitioWeb, String descripcionEmpresa) {}
 
-    public record UsuarioDto(Long id, String email, String rol, boolean activo, Instant createdAt, Instant ultimoLogin, String foto) {}
+    public record UsuarioDto(Long id, String email, String rol, boolean activo, boolean emailVerificado, Instant createdAt, Instant ultimoLogin, String foto) {}
     public record Foto(@NotBlank String foto) {}
     public record PerfilDto(Long usuarioId, String razonSocial, String rutEmpresa, String rutPersona, String nombreContacto, String emailContacto,
                             String telefono, Integer rubroId, Integer ciudadId, Integer tamanoEmpresaId, String descripcionEmpresa, String sitioWeb,

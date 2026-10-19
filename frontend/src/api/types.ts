@@ -21,7 +21,8 @@ export interface Usuario {
   id: number
   email: string
   rol: Rol
-  activo: boolean
+  activo: boolean          // false = bloqueada por el administrador
+  emailVerificado: boolean // false = se registró pero aún no abre el enlace del correo (no puede iniciar sesión)
   createdAt: string
   ultimoLogin?: string
   foto?: string | null   // data URL JPEG 256x256; sin foto se muestran las iniciales
@@ -287,13 +288,24 @@ export interface ResumenPyme {
   recomendadas: Licitacion[]
 }
 
+/** Respuesta del registro: la cuenta queda pendiente de verificar el correo y no se inicia sesión. */
+export interface RegistroOk {
+  email: string
+  mensaje: string
+}
+
+/** Código HTTP con que el login rechaza una cuenta que aún no verifica su correo. */
+export const ERROR_SIN_VERIFICAR = 428
+
 export interface Api {
   // Autenticación
   login(email: string, password: string): Promise<Sesion>
   sesionActual(): Promise<Sesion | null>
   logout(): Promise<void>
-  registrarLicitador(d: RegistroLicitador): Promise<Sesion>
-  registrarPyme(d: RegistroPyme): Promise<Sesion>
+  registrarLicitador(d: RegistroLicitador): Promise<RegistroOk>
+  registrarPyme(d: RegistroPyme): Promise<RegistroOk>
+  verificarCuenta(token: string): Promise<void>
+  reenviarVerificacion(email: string): Promise<void>
   emailDisponible(email: string): Promise<boolean>
   rutDisponible(rut: string): Promise<boolean>
   rutPersonaDisponible(rut: string): Promise<boolean>

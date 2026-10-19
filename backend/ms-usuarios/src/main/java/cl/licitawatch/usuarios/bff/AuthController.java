@@ -28,11 +28,17 @@ public class AuthController {
     @PostMapping("/api/auth/restablecer")
     public Map<String, String> restablecer(@Valid @RequestBody Restablecer b) { auth.restablecer(b.token(), b.password()); return Map.of("mensaje", "Contraseña actualizada"); }
 
+    @PostMapping("/api/auth/verificar")
+    public Map<String, String> verificar(@Valid @RequestBody Verificar b) { auth.verificar(b.token()); return Map.of("mensaje", "Cuenta verificada"); }
+
+    @PostMapping("/api/auth/reenviar-verificacion")
+    public Map<String, String> reenviar(@Valid @RequestBody Recuperar b) { auth.reenviarVerificacion(b.email()); return Map.of("mensaje", "Si la cuenta está pendiente de verificación, enviamos un nuevo enlace"); }
+
     @PostMapping("/api/usuarios/registro/licitador")
-    public ResponseEntity<SesionDto> regLicitador(@Valid @RequestBody Registro b) { return ResponseEntity.status(HttpStatus.CREATED).body(registro.registrar("LICITADOR", b)); }
+    public ResponseEntity<RegistroOk> regLicitador(@Valid @RequestBody Registro b) { return ResponseEntity.status(HttpStatus.CREATED).body(registro.registrar("LICITADOR", b)); }
 
     @PostMapping("/api/usuarios/registro/pyme")
-    public ResponseEntity<SesionDto> regPyme(@Valid @RequestBody Registro b) { return ResponseEntity.status(HttpStatus.CREATED).body(registro.registrar("PYME", b)); }
+    public ResponseEntity<RegistroOk> regPyme(@Valid @RequestBody Registro b) { return ResponseEntity.status(HttpStatus.CREATED).body(registro.registrar("PYME", b)); }
 
     @GetMapping("/api/usuarios/disponibilidad/email") public Disponible email(@RequestParam String valor) { return new Disponible(registro.emailDisponible(valor)); }
     @GetMapping("/api/usuarios/disponibilidad/rut") public Disponible rut(@RequestParam String valor) { return new Disponible(registro.rutDisponible(valor)); }

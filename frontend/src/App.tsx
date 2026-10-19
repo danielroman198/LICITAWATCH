@@ -8,7 +8,7 @@ import { AppShell } from './components/layout/AppShell'
 import { PublicPage } from './components/layout/PublicLayout'
 import { Home } from './pages/public/Home'
 import { RegisterChoice, RegisterForm } from './pages/public/Register'
-import { Login, Recover, Reset, Bandeja } from './pages/public/Auth'
+import { Login, Recover, Reset, Bandeja, RevisaCorreo, Verificar } from './pages/public/Auth'
 import { LicitadorDashboard } from './pages/licitador/Dashboard'
 import { MyTenders, TenderForm } from './pages/licitador/Tenders'
 import { PymeDashboard } from './pages/pyme/Dashboard'
@@ -37,6 +37,8 @@ const publicas: RouteDef[] = [
   { path: '/login', render: () => <Login /> },
   { path: '/recuperar', render: () => <Recover /> },
   { path: '/restablecer', render: () => <Reset /> },
+  { path: '/verifica-tu-correo', render: () => <RevisaCorreo /> },
+  { path: '/verificar', render: () => <Verificar /> },
   { path: '/bandeja', render: () => <Bandeja /> },
 ]
 

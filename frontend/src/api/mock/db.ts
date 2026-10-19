@@ -17,8 +17,8 @@ export interface PostulacionDB {
 }
 export interface NotificacionDB extends Notificacion { usuarioId: number }
 export interface SuscripcionDB extends Omit<Suscripcion, 'plan' | 'postulacionesUsadas'> { planId: number }
-export interface CorreoDB { id: number; para: string; asunto: string; cuerpo: string; fecha: string; enlace?: string }
-export interface TokenDB { token: string; usuarioId: number; expira: string; usado: boolean }
+export interface CorreoDB { id: number; para: string; asunto: string; cuerpo: string; fecha: string; enlace?: string; etiqueta?: string }
+export interface TokenDB { token: string; usuarioId: number; expira: string; usado: boolean; tipo?: 'reset' | 'verificar' }  // sin tipo = reset (datos antiguos)
 
 export interface DB {
   version: number
@@ -106,7 +106,7 @@ function seed(): DB {
   }
 
   const addUser = (email: string, rol: Usuario['rol'], haceDias: number, activo = true): UsuarioDB => {
-    const u: UsuarioDB = { id: nextId(db, 'usuario'), email, password: 'Demo1234!', rol, activo, createdAt: iso(now - haceDias * DAY) }
+    const u: UsuarioDB = { id: nextId(db, 'usuario'), email, password: 'Demo1234!', rol, activo, emailVerificado: true, createdAt: iso(now - haceDias * DAY) }
     db.usuarios.push(u)
     return u
   }

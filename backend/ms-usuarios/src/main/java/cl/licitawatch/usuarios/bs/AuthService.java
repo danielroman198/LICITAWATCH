@@ -8,6 +8,7 @@ import cl.licitawatch.usuarios.bd.Repos.UsuarioRepo;
 import cl.licitawatch.usuarios.bff.Dto.SesionDto;
 import cl.licitawatch.usuarios.bff.Dto.UsuarioDto;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,8 @@ public class AuthService {
         Usuario u = usuarios.findByEmailIgnoreCase(email.trim()).orElseThrow(() -> ApiException.noAutorizado("Correo o contraseña incorrectos"));
         if (!enc.matches(password, u.getPassword())) throw ApiException.noAutorizado("Correo o contraseña incorrectos");
         if (!u.isActivo()) throw ApiException.prohibido("Tu cuenta está bloqueada. Contacta al administrador.");
+        // 428: el front lo usa para ofrecer "Reenviar correo de verificación".
+        if (!u.isEmailVerificado()) throw new ApiException(HttpStatus.PRECONDITION_REQUIRED, "Debes verificar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.");
         return sesion(u, jwt.emitir(u.getId(), u.getRolNombre()));
     }
 
@@ -80,5 +83,28 @@ public class AuthService {
         if (id == null) throw ApiException.invalido("El enlace de recuperación no es válido o ya venció");
         Usuario u = usuarios.findById(id).orElseThrow(() -> ApiException.invalido("El enlace de recuperación no es válido"));
         u.setPassword(enc.encode(password));
+        u.setEmailVerificado(true);   // abrir el enlace del correo ya prueba que el correo es suyo
+    }
+
+    /** Envía el enlace de verificación (vence en 24 h). Sin tabla de tokens: el enlace lleva un JWT de propósito VERIFICAR. */
+    public void enviarVerificacion(Usuario u) {
+        String enlace = appUrl + "/verificar?token=" + jwt.emitirVerificacion(u.getId());
+        interno.notificar(urlNotif, u.getId(), "CORREO", "Verifica tu cuenta de LicitaWatch",
+                "¡Bienvenido a LicitaWatch! Para activar tu cuenta, confirma tu correo con este enlace (vence en 24 horas): " + enlace
+                        + "\n\nSi no creaste esta cuenta, ignora este correo.", true);
+    }
+
+    /** Idempotente: si la cuenta ya estaba verificada, responde igual. */
+    @Transactional
+    public void verificar(String token) {
+        Long id = jwt.validarVerificacion(token);
+        if (id == null) throw ApiException.invalido("El enlace de verificación no es válido o ya venció. Solicita uno nuevo.");
+        Usuario u = usuarios.findById(id).orElseThrow(() -> ApiException.invalido("El enlace de verificación no es válido"));
+        u.setEmailVerificado(true);
+    }
+
+    /** Responde siempre igual (no revela qué cuentas existen). Solo reenvía si la cuenta existe, está activa y aún no se verifica. */
+    public void reenviarVerificacion(String email) {
+        usuarios.findByEmailIgnoreCase(email.trim()).filter(u -> u.isActivo() && !u.isEmailVerificado()).ifPresent(this::enviarVerificacion);
     }
 }

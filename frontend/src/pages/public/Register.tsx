@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, USE_MOCK } from '../../api'
-import type { ConsultaSii, Sesion } from '../../api/types'
+import type { ConsultaSii } from '../../api/types'
 import { Link, navigate } from '../../lib/router'
 import { Logo } from '../../components/layout/Logo'
 import { PublicPage } from '../../components/layout/PublicLayout'
+import { MapaChileVivo } from '../../components/layout/EscenasAuth'
+import { MediaVideo } from '../../components/layout/MediaVideo'
 import { Accordion, Badge, Button, Field, Input, Select, Textarea, useToast } from '../../components/ui/ui'
 import { Icon } from '../../lib/icons'
 import { esRutEmpresa, esRutPersona, formatearRut, limpiarRut, validarRut } from '../../lib/rut'
 import { validarEmail, validarPassword } from '../../lib/format'
-import { useAuth, useCatalogos } from '../../context/AuthContext'
+import { useCatalogos } from '../../context/AuthContext'
 import { RUT_DE_PRUEBA } from '../../api/mock/sii'
 
 export function RegisterChoice() {
@@ -46,9 +48,9 @@ type Paso = 0 | 1 | 2 | 3
 
 export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
   const esPyme = rol === 'PYME'
+  const [conVideo, setConVideo] = useState(true) // si no existe /media/registro.mp4 se muestra el mapa animado
   const cat = useCatalogos()
   const toast = useToast()
-  const { setSesion } = useAuth()
   const [abierto, setAbierto] = useState<Paso>(0)
   const [enviando, setEnviando] = useState(false)
 
@@ -180,10 +182,9 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
       sitioWeb: sitioWeb || undefined, giro: sii?.giro, siiValidado: true,
     }
     try {
-      const s: Sesion = esPyme ? await api.registrarPyme({ ...base, tamanoEmpresaId: tamanoId }) : await api.registrarLicitador(base)
-      setSesion(s)
-      toast.ok('¡Cuenta creada! Te enviamos un correo de bienvenida.')
-      navigate('/app', true)
+      const r = esPyme ? await api.registrarPyme({ ...base, tamanoEmpresaId: tamanoId }) : await api.registrarLicitador(base)
+      toast.ok('¡Cuenta creada! Revisa tu correo para activarla.')
+      navigate(`/verifica-tu-correo?email=${encodeURIComponent(r.email)}`, true)
     } catch (err) {
       toast.error((err as Error).message)
       const m = (err as Error).message.toLowerCase()
@@ -319,7 +320,10 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
           <p className="auth-foot">¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link></p>
         </div>
       </div>
-      <aside className="auth-art">
+      <aside className={`auth-art ${conVideo ? 'con-video' : ''}`}>
+        <MediaVideo src="/media/registro.mp4" fallback={null} className="auth-art-video" onFalla={() => setConVideo(false)}>
+          <div className="auth-art-velo" />
+        </MediaVideo>
         <div className="auth-art-inner">
           <span className="eyebrow light"><i /> {esPyme ? 'Para Pymes' : 'Para Licitadores'}</span>
           <h2>{esPyme ? 'Encuentra tu próximo gran cliente' : 'Recibe las mejores propuestas, sin costo'}</h2>
@@ -329,10 +333,7 @@ export function RegisterForm({ rol }: { rol: 'LICITADOR' | 'PYME' }) {
               : ['Publica licitaciones gratis, sin límites', 'Pymes verificadas con el SII', 'Aprueba, rechaza y adjudica con un clic', 'Chat privado con la Pyme ganadora']
             ).map((t) => <li key={t}><Icon name="checkcircle" size={20} />{t}</li>)}
           </ul>
-          <div className="art-card">
-            <div className="art-row"><span className="art-pill">Abierta</span><b>Construcción de bodega logística</b></div>
-            <div className="art-meta"><span><Icon name="pin" size={14} /> Santiago</span><span><Icon name="dollar" size={14} /> $45M – $68M</span><span><Icon name="users" size={14} /> 4 postulantes</span></div>
-          </div>
+          {!conVideo && <MapaChileVivo />}
         </div>
       </aside>
     </div>

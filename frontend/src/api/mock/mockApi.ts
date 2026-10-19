@@ -1,11 +1,12 @@
 import type {
   Api, Conversacion, EstadisticasAdmin, FiltroLicitaciones, FiltroUsuarios, Licitacion, MensajeAsistente,
-  MetodoPago, NuevaLicitacion, Perfil, Plan, Postulacion, PuntoMensual, RegistroLicitador, RegistroPyme,
+  MetodoPago, NuevaLicitacion, Perfil, Plan, Postulacion, PuntoMensual, RegistroLicitador, RegistroOk, RegistroPyme,
   ResumenLicitador, ResumenPyme, Sesion, Suscripcion, TipoNotificacion, Usuario, UsuarioAdmin, Venta,
 } from '../types'
 import { ApiError } from '../errors'
+import { ERROR_SIN_VERIFICAR } from '../types'
 import { CIUDADES, REGIONES, RUBROS, TAMANOS } from './catalogs'
-import { PLANES, loadDb, nextId, planPorId, resetDb, saveDb, type DB, type LicitacionDB, type PostulacionDB } from './db'
+import { PLANES, loadDb, nextId, planPorId, resetDb, saveDb, type DB, type LicitacionDB, type PostulacionDB, type UsuarioDB } from './db'
 import { consultarSiiMock } from './sii'
 import { limpiarRut, validarRut, esRutEmpresa, esRutPersona } from '../../lib/rut'
 import { mesCorto, validarEmail, validarPassword } from '../../lib/format'
@@ -65,10 +66,20 @@ const usadasEsteMes = (db: DB, pymeId: number) => {
   }).length
 }
 
-function correo(db: DB, usuarioId: number, asunto: string, cuerpo: string, enlace?: string) {
+function correo(db: DB, usuarioId: number, asunto: string, cuerpo: string, enlace?: string, etiqueta?: string) {
   const u = db.usuarios.find((x) => x.id === usuarioId)
   if (!u) return
-  db.correos.unshift({ id: nextId(db, 'correo'), para: u.email, asunto, cuerpo, fecha: ahora(), enlace })
+  db.correos.unshift({ id: nextId(db, 'correo'), para: u.email, asunto, cuerpo, fecha: ahora(), enlace, etiqueta })
+}
+const nuevoToken = () => Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12)
+// Las cuentas guardadas antes de este cambio no tienen el campo: se consideran verificadas.
+const verificado = (u: UsuarioDB) => u.emailVerificado !== false
+function enviarVerificacion(db: DB, u: UsuarioDB) {
+  const token = nuevoToken()
+  db.tokens.push({ token, usuarioId: u.id, expira: new Date(Date.now() + 24 * 3600000).toISOString(), usado: false, tipo: 'verificar' })
+  correo(db, u.id, 'Verifica tu cuenta de LicitaWatch',
+    '¡Bienvenido a LicitaWatch! Para activar tu cuenta, confirma tu correo con este enlace (vence en 24 horas). Si no creaste esta cuenta, ignora este correo.',
+    `${window.location.origin}/verificar?token=${token}`, 'Verificar mi cuenta')
 }
 function notificar(db: DB, usuarioId: number, tipo: TipoNotificacion, titulo: string, detalle: string, mail = true) {
   db.notificaciones.unshift({ id: nextId(db, 'notificacion'), usuarioId, tipo, titulo, detalle, createdAt: ahora(), leida: false })
@@ -117,7 +128,7 @@ function ultimosMeses(n: number): { clave: string; etiqueta: string; desde: numb
 const serie = (fechas: string[], n = 6): PuntoMensual[] =>
   ultimosMeses(n).map((m) => ({ mes: m.etiqueta, valor: fechas.filter((f) => { const t = new Date(f).getTime(); return t >= m.desde && t < m.hasta }).length }))
 
-function registrar(db: DB, d: RegistroLicitador, rol: 'LICITADOR' | 'PYME', tamano?: number): Sesion {
+function registrar(db: DB, d: RegistroLicitador, rol: 'LICITADOR' | 'PYME', tamano?: number): RegistroOk {
   if (!validarEmail(d.email)) throw new ApiError('El correo no es válido.', 422)
   const errPass = validarPassword(d.password)
   if (errPass) throw new ApiError(`Contraseña insegura: ${errPass.toLowerCase()}.`, 422)
@@ -130,7 +141,7 @@ function registrar(db: DB, d: RegistroLicitador, rol: 'LICITADOR' | 'PYME', tama
   // "Transacción": todo o nada
   const copia = clon(db)
   try {
-    const usuario = { id: nextId(db, 'usuario'), email: d.email.trim().toLowerCase(), password: d.password, rol, activo: true, createdAt: ahora() }
+    const usuario: UsuarioDB = { id: nextId(db, 'usuario'), email: d.email.trim().toLowerCase(), password: d.password, rol, activo: true, emailVerificado: false, createdAt: ahora() }
     db.usuarios.push(usuario)
     db.perfiles.push({
       usuarioId: usuario.id, razonSocial: d.razonSocial.trim(), rutEmpresa: d.rutEmpresa, rutPersona: d.rutPersona,
@@ -139,12 +150,9 @@ function registrar(db: DB, d: RegistroLicitador, rol: 'LICITADOR' | 'PYME', tama
       sitioWeb: d.sitioWeb?.trim() || undefined, giro: d.giro, siiValidado: d.siiValidado, updatedAt: ahora(),
     })
     if (rol === 'PYME') db.suscripciones.push({ id: nextId(db, 'suscripcion'), usuarioId: usuario.id, planId: 1, estado: 'Activa', fechaInicio: ahora() })
-    correo(db, usuario.id, '¡Bienvenido a LicitaWatch!', `Hola ${d.nombreContacto}, tu cuenta de ${rol === 'LICITADOR' ? 'Licitador' : 'Pyme'} fue creada con éxito. Ya puedes iniciar sesión.`)
-    const token = 'tk_' + Math.random().toString(36).slice(2) + Date.now().toString(36)
-    db.sesiones[token] = usuario.id
+    enviarVerificacion(db, usuario)
     saveDb()
-    setToken(token)
-    return sesionDe(db, usuario.id, token)
+    return { email: usuario.email, mensaje: 'Te enviamos un correo para verificar tu cuenta' }
   } catch (e) {
     Object.assign(db, copia)
     throw e
@@ -163,6 +171,7 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
     const u = db.usuarios.find((x) => x.email.toLowerCase() === email.trim().toLowerCase())
     if (!u || u.password !== password) throw new ApiError('Correo o contraseña incorrectos.', 401)
     if (!u.activo) throw new ApiError('Tu cuenta fue bloqueada por el equipo de LicitaWatch. Contacta a soporte.', 403)
+    if (!verificado(u)) throw new ApiError('Debes verificar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.', ERROR_SIN_VERIFICAR)
     const token = 'tk_' + Math.random().toString(36).slice(2) + Date.now().toString(36)
     db.sesiones[token] = u.id
     u.ultimoLogin = ahora()
@@ -187,6 +196,24 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
   },
   async registrarLicitador(d) { await delay(700); return registrar(loadDb(), d, 'LICITADOR') },
   async registrarPyme(d) { await delay(700); return registrar(loadDb(), d, 'PYME', d.tamanoEmpresaId) },
+  async verificarCuenta(token) {
+    await delay(500)
+    const db = loadDb()
+    const t = db.tokens.find((x) => x.token === token && x.tipo === 'verificar')
+    if (!t || new Date(t.expira).getTime() < Date.now()) throw new ApiError('El enlace de verificación no es válido o ya venció. Solicita uno nuevo.', 400)
+    const u = db.usuarios.find((x) => x.id === t.usuarioId)
+    if (!u) throw new ApiError('El enlace de verificación no es válido.', 400)
+    u.emailVerificado = true   // idempotente: abrir el enlace dos veces no es un error
+    t.usado = true
+    saveDb()
+  },
+  async reenviarVerificacion(email) {
+    await delay(500)
+    const db = loadDb()
+    const u = db.usuarios.find((x) => x.email.toLowerCase() === email.trim().toLowerCase())
+    if (u && u.activo && !verificado(u)) { enviarVerificacion(db, u); saveDb() }
+    // Respuesta idéntica exista o no la cuenta (no revela cuentas)
+  },
   async emailDisponible(email) {
     await delay(250)
     return !loadDb().usuarios.some((u) => u.email.toLowerCase() === email.trim().toLowerCase())
@@ -205,8 +232,8 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
     const db = loadDb()
     const u = db.usuarios.find((x) => x.email.toLowerCase() === email.trim().toLowerCase())
     if (u && u.activo) {
-      const token = Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12)
-      db.tokens.push({ token, usuarioId: u.id, expira: new Date(Date.now() + 3600000).toISOString(), usado: false })
+      const token = nuevoToken()
+      db.tokens.push({ token, usuarioId: u.id, expira: new Date(Date.now() + 3600000).toISOString(), usado: false, tipo: 'reset' })
       const enlace = `${window.location.origin}/restablecer?token=${token}`
       correo(db, u.id, 'Recupera tu contraseña de LicitaWatch', 'Recibimos una solicitud para restablecer tu contraseña. Este enlace vence en 1 hora. Si no fuiste tú, ignora este correo.', enlace)
       saveDb()
@@ -216,12 +243,13 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
   async restablecerPassword(token, password) {
     await delay(500)
     const db = loadDb()
-    const t = db.tokens.find((x) => x.token === token)
+    const t = db.tokens.find((x) => x.token === token && x.tipo !== 'verificar')
     if (!t || t.usado || new Date(t.expira).getTime() < Date.now()) throw new ApiError('El enlace no es válido o ya venció. Solicita uno nuevo.', 400)
     const err = validarPassword(password)
     if (err) throw new ApiError(`Contraseña insegura: ${err.toLowerCase()}.`, 422)
     const u = db.usuarios.find((x) => x.id === t.usuarioId)!
     u.password = password
+    u.emailVerificado = true   // abrir el enlace del correo ya prueba que el correo es suyo
     t.usado = true
     correo(db, u.id, 'Tu contraseña fue actualizada', 'Tu contraseña de LicitaWatch se cambió correctamente.')
     saveDb()

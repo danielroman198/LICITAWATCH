@@ -47,16 +47,10 @@ export const httpApi: Api = {
     try { return await get('/api/auth/me') } catch { setToken(null); return null }
   },
   async logout() { setToken(null) },
-  async registrarLicitador(d) {
-    const s = await post<Awaited<ReturnType<Api['login']>>>('/api/usuarios/registro/licitador', d)
-    setToken(s.token)
-    return s
-  },
-  async registrarPyme(d) {
-    const s = await post<Awaited<ReturnType<Api['login']>>>('/api/usuarios/registro/pyme', d)
-    setToken(s.token)
-    return s
-  },
+  registrarLicitador: (d) => post('/api/usuarios/registro/licitador', d),
+  registrarPyme: (d) => post('/api/usuarios/registro/pyme', d),
+  async verificarCuenta(token) { await post('/api/auth/verificar', { token }) },
+  async reenviarVerificacion(email) { await post('/api/auth/reenviar-verificacion', { email }) },
   async emailDisponible(email) { return (await get<{ disponible: boolean }>('/api/usuarios/disponibilidad/email', { valor: email })).disponible },
   async rutDisponible(rut) { return (await get<{ disponible: boolean }>('/api/usuarios/disponibilidad/rut', { valor: rut })).disponible },
   async rutPersonaDisponible(rut) { return (await get<{ disponible: boolean }>('/api/usuarios/disponibilidad/rut-persona', { valor: rut })).disponible },

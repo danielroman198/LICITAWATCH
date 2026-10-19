@@ -40,6 +40,18 @@ public class JwtService {
         try { Claims c = validar(token); return "RESET".equals(c.get("rol", String.class)) ? Long.parseLong(c.getSubject()) : null; } catch (Exception e) { return null; }
     }
 
+    /** Token de un solo propósito para verificar el correo al registrarse (rol VERIFICAR: no sirve como sesión). Vence en 24 horas. */
+    public String emitirVerificacion(long usuarioId) {
+        Date ahora = new Date();
+        return Jwts.builder().subject(String.valueOf(usuarioId)).claim("rol", "VERIFICAR")
+                .issuedAt(ahora).expiration(new Date(ahora.getTime() + 24 * 3_600_000L)).signWith(key).compact();
+    }
+
+    /** Devuelve el id de usuario si el token es de verificación y está vigente; si no, null. */
+    public Long validarVerificacion(String token) {
+        try { Claims c = validar(token); return "VERIFICAR".equals(c.get("rol", String.class)) ? Long.parseLong(c.getSubject()) : null; } catch (Exception e) { return null; }
+    }
+
     public Claims validar(String token) {
         return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
     }

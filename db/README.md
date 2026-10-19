@@ -26,6 +26,7 @@ Después de un `git pull`, ejecuta las migraciones (todas se pueden correr más 
 psql -U postgres -d licitawatch_usuarios -f db/migracion_rut_persona.sql      # RUT personal único y obligatorio
 psql -U postgres -d licitawatch_usuarios -f db/migracion_ciudades_rm.sql      # la Región Metropolitana solo tiene la ciudad Santiago
 psql -U postgres -d licitawatch_usuarios -f db/migracion_foto_perfil.sql      # foto de perfil (usuario.foto)
+psql -U postgres -d licitawatch_usuarios -f db/migracion_email_verificado.sql # verificación de correo al registrarse (usuario.email_verificado)
 ```
 Si prefieres partir de cero (se pierden los datos de prueba): borra las 5 bases y vuelve a ejecutar los pasos 2 (00 a 05).
 

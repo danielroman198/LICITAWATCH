@@ -28,6 +28,9 @@ public class LicitacionController {
     @PostMapping("/api/licitaciones") @ResponseStatus(HttpStatus.CREATED)
     public LicitacionDto crear(HttpServletRequest r, @Valid @RequestBody NuevaLicitacion b) { return svc.crear(Auth.exigir(r, "LICITADOR").usuarioId(), b); }
 
+    @DeleteMapping("/api/licitaciones/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void eliminar(HttpServletRequest r, @PathVariable long id) { svc.eliminar(id, Auth.exigir(r, "LICITADOR").usuarioId()); }
+
     @PostMapping("/api/licitaciones/{id}/cerrar")
     public LicitacionDto cerrar(HttpServletRequest r, @PathVariable long id) { Sesion s = Auth.exigir(r, "LICITADOR", "ADMIN"); return svc.cerrar(id, s.usuarioId(), s.esAdmin()); }
 

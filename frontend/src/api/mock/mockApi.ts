@@ -338,6 +338,18 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
     saveDb()
     return aLicitacion(db, l)
   },
+  async eliminarLicitacion(id) {
+    await delay()
+    const db = loadDb()
+    const u = exigir(db, 'LICITADOR')
+    const l = db.licitaciones.find((x) => x.id === id)
+    if (!l) throw new ApiError('La licitación no existe.', 404)
+    if (l.licitadorId !== u.id) throw new ApiError('Solo el Licitador dueño puede eliminar esta licitación.', 403)
+    const n = db.postulaciones.filter((p) => p.licitacionId === id).length
+    if (n > 0) throw new ApiError(`No puedes eliminar esta licitación porque ya tiene ${n} ${n === 1 ? 'postulación' : 'postulaciones'}. Si ya no la necesitas, ciérrala para que no reciba más.`, 409)
+    db.licitaciones = db.licitaciones.filter((x) => x.id !== id)
+    saveDb()
+  },
   async postulantes(licitacionId) {
     await delay()
     const db = loadDb()
@@ -362,7 +374,7 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
     if (usadas >= plan.postulacionesMes) {
       throw new ApiError(plan.nombre === 'Estándar'
         ? `Usaste tus ${plan.postulacionesMes} postulaciones de este mes. Pasa a Premium para postular hasta 7 veces.`
-        : `Usaste tus ${plan.postulacionesMes} postulaciones de este mes. Se renuevan el próximo mes.`, 403)
+        : `Usaste tus ${plan.postulacionesMes} postulaciones de este mes. Se renuevan el próximo mes.`, 422)
     }
     const p: PostulacionDB = { id: nextId(db, 'postulacion'), licitacionId: l.id, pymeId: u.id, mensaje: mensaje.trim() || undefined, fecha: ahora(), estado: 'Pendiente', adjudicada: false, updatedAt: ahora() }
     db.postulaciones.push(p)

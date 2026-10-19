@@ -86,3 +86,12 @@ td.row-actions { display: table-cell; text-align: right; white-space: nowrap; } 
 .table td { white-space: nowrap; } .table td .cell-user { white-space: normal; min-width: 220px; }
 .card:has(> .table-wrap) { overflow: hidden; }
 @media (max-width: 560px) { .banner { flex-direction: column; align-items: flex-start; padding-bottom: 56px; } .banner-ctrl { right: 16px; bottom: 12px; } }
+
+/* ---- Pop-up: límite de postulaciones del plan ---- */
+.limite-pop { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.limite-ic { display: grid; place-items: center; width: 62px; height: 62px; border-radius: 50%; background: var(--amber-soft); color: var(--amber); }
+.limite-pop ul { display: flex; flex-direction: column; gap: 8px; align-self: stretch; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); text-align: left; }
+.limite-pop li { display: flex; align-items: center; gap: 8px; font-size: 14.5px; } .limite-pop li svg { flex: none; color: var(--teal); }
+.limite-precio { font-size: 15px; color: var(--muted); } .limite-precio b { font-size: 22px; color: var(--text); }
+.limite-nota { font-size: 13px; color: var(--subtle); }
+.gestion { display: flex; flex-direction: column; gap: 10px; } .gestion .muted-p { display: flex; gap: 6px; align-items: flex-start; } .gestion .muted-p svg { flex: none; margin-top: 3px; }

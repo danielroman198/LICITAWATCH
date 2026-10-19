@@ -17,8 +17,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Lógica de Licitaciones según el ER: la postulación nace "Pendiente" y abre el chat (REST a MS-Chat);
- * el Licitador la pasa a "Aprobada" o "Rechazada" y al aprobar una la licitación pasa a "Adjudicada".
+ * Lógica de Licitaciones: la postulación nace "Pendiente"; el Licitador la pasa a "Aprobada" o "Rechazada" y al aprobar una
+ * la licitación pasa a "Adjudicada". Recién ahí se abre el chat (REST a MS-Chat): plan de negocio, no hay chat antes de adjudicar.
  * Los datos de otros servicios (nombres, plan, conversación) se piden por REST y no se duplican en esta BD.
  */
 @Service
@@ -76,7 +76,7 @@ public class LicitacionService {
         JsonNode u = c.usuario(p.getPymeId());
         return new PostulacionDto(p.getId(), l.getId(), l.getTitulo(), c.nombre(l.getLicitadorId()), p.getPymeId(), c.nombre(p.getPymeId()),
                 u.hasNonNull("rubroId") ? u.get("rubroId").asInt() : null, u.hasNonNull("tamanoEmpresaId") ? u.get("tamanoEmpresaId").asInt() : null, c.esPremium(p.getPymeId()),
-                p.getMensaje(), p.getFechaPostulacion().atStartOfDay(ZoneId.systemDefault()).toInstant(), p.getEstado().getNombre(), adj, p.getUpdatedAt(), c.conversaciones.get(p.getId()));
+                p.getMensaje(), p.getFechaPostulacion().atStartOfDay(ZoneId.systemDefault()).toInstant(), p.getEstado().getNombre(), adj, p.getUpdatedAt(), adj ? c.conversaciones.get(p.getId()) : null);
     }
     private List<PostulacionDto> dtosPost(List<Postulacion> ps, Map<Long, Licitacion> porId) {
         Ctx c = new Ctx(); c.cargarConversaciones(ps.stream().map(Postulacion::getId).toList());
@@ -119,6 +119,23 @@ public class LicitacionService {
     public List<LicitacionDto> mias(long licitadorId) { return dtos(lics.findByLicitadorIdOrderByCreatedAtDesc(licitadorId)); }
     public List<LicitacionDto> todas() { return dtos(lics.findAllByOrderByCreatedAtDesc()); }
 
+    /**
+     * El Licitador dueño puede borrar su licitación (p. ej. si se equivocó), pero solo mientras ninguna Pyme haya postulado:
+     * con postulantes ya hay compromisos y cupos usados, así que debe cerrarla en vez de borrarla.
+     */
+    @Transactional
+    public void eliminar(long id, long usuarioId) {
+        Licitacion l = lic(id);
+        if (l.getLicitadorId() != usuarioId) throw ApiException.prohibido("Solo el Licitador dueño puede eliminar esta licitación");
+        long n = posts.countByLicitacionId(id);
+        if (n > 0) throw ApiException.conflicto("No puedes eliminar esta licitación porque ya tiene " + n + (n == 1 ? " postulación" : " postulaciones")
+                + ". Si ya no la necesitas, ciérrala para que no reciba más.");
+        try { lics.delete(l); lics.flush(); }
+        catch (org.springframework.dao.DataIntegrityViolationException e) {   // una Pyme postuló justo en ese instante (FK postulacion -> licitacion)
+            throw ApiException.conflicto("Una Pyme acaba de postular a esta licitación, por lo que ya no se puede eliminar.");
+        }
+    }
+
     @Transactional
     public LicitacionDto cerrar(long id, long usuarioId, boolean admin) {
         Licitacion l = lic(id);
@@ -151,12 +168,8 @@ public class LicitacionService {
         p.setLicitacionId(licitacionId); p.setPymeId(pymeId); p.setMensaje(mensaje); p.setEstado(ep("Pendiente"));
         p = posts.save(p);
 
-        // ER: al registrarse una postulación, API Licitaciones llama por REST a API Chat para abrir la conversación.
+        // El chat NO se abre al postular: solo cuando el Licitador aprueba y la licitación queda adjudicada (ver decidir).
         Ctx c = new Ctx();
-        try {
-            Map<String, Object> conv = Map.of("postulacionId", p.getId(), "licitadorId", l.getLicitadorId(), "pymeId", pymeId);
-            c.conversaciones.put(p.getId(), interno.post(urlChat + "/internal/conversaciones", conv, JsonNode.class).path("id").asLong());
-        } catch (Exception e) { /* si el chat está caído la postulación igual se registra */ }
         interno.notificar(urlNotif, l.getLicitadorId(), "Postulación recibida", "Nueva postulación recibida", "Una Pyme postuló a tu licitación \"" + l.getTitulo() + "\".", true);
         return dto(p, l, c);
     }
@@ -182,8 +195,17 @@ public class LicitacionService {
         }
         interno.notificar(urlNotif, p.getPymeId(), "Postulación " + estado.toLowerCase(), "Tu postulación fue " + (aprobar ? "aprobada" : "no seleccionada"),
                 aprobar ? "El Licitador aprobó tu postulación a \"" + l.getTitulo() + "\" y la licitación te fue adjudicada. Ya puedes conversar por chat." : "Tu postulación a \"" + l.getTitulo() + "\" no fue seleccionada.", true);
-        Ctx c = new Ctx(); c.cargarConversaciones(List.of(p.getId()));
+        Ctx c = new Ctx();
+        if (aprobar) abrirChat(p, l, c); else c.cargarConversaciones(List.of(p.getId()));
         return dto(p, l, c);
+    }
+
+    /** Abre la conversación Licitador–Pyme adjudicada (MS-Chat la crea una sola vez: postulacion_id es único). */
+    private void abrirChat(Postulacion p, Licitacion l, Ctx c) {
+        try {
+            Map<String, Object> conv = Map.of("postulacionId", p.getId(), "licitadorId", l.getLicitadorId(), "pymeId", p.getPymeId());
+            c.conversaciones.put(p.getId(), interno.post(urlChat + "/internal/conversaciones", conv, JsonNode.class).path("id").asLong());
+        } catch (Exception e) { /* chat caído: la adjudicación igual queda; "adjudicar" vuelve a intentarlo */ }
     }
 
     /** Se mantiene por compatibilidad con el front: en el ER aprobar ya adjudica, así que solo confirma el estado. */
@@ -193,7 +215,7 @@ public class LicitacionService {
         if (l.getLicitadorId() != licitadorId) throw ApiException.prohibido("Solo el Licitador dueño puede adjudicar");
         if (es(p, "Pendiente")) return decidir(postulacionId, licitadorId, "Aprobada");
         if (!es(p, "Aprobada")) throw ApiException.conflicto("Solo se puede adjudicar una postulación aprobada");
-        Ctx c = new Ctx(); c.cargarConversaciones(List.of(p.getId()));
+        Ctx c = new Ctx(); abrirChat(p, l, c);   // idempotente: si el chat estaba caído al aprobar, aquí se abre
         return dto(p, l, c);
     }
 
@@ -235,7 +257,8 @@ public class LicitacionService {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Postulacion p : posts.findAllById(ids)) {
             Licitacion l = lic(p.getLicitacionId());
-            out.add(Map.of("id", p.getId(), "licitacionId", l.getId(), "licitacionTitulo", l.getTitulo()));
+            boolean adjudicada = es(p, "Aprobada") && es(l, "Adjudicada");   // MS-Chat solo habilita el chat en este caso
+            out.add(Map.of("id", p.getId(), "licitacionId", l.getId(), "licitacionTitulo", l.getTitulo(), "adjudicada", adjudicada));
         }
         return out;
     }

@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { api } from '../../api'
-import type { Postulacion } from '../../api/types'
+import { ApiError } from '../../api/errors'
+import type { Plan, Postulacion } from '../../api/types'
 import { Avatar, Badge, Button, Card, CardHeader, Cargando, EmptyState, Field, Modal, Progress, Textarea, tonoEstado, useAsync, useToast } from '../../components/ui/ui'
 import { VolverLink } from '../../components/app/shared'
 import { useAuth, useCatalogos } from '../../context/AuthContext'
 import { Icon } from '../../lib/icons'
-import { Link, navigate } from '../../lib/router'
+import { navigate } from '../../lib/router'
 import { diasHasta, fechaCorta, hace, rangoPresupuesto, clp } from '../../lib/format'
 
 export function TenderDetail({ id }: { id: number }) {
@@ -21,7 +22,9 @@ export function TenderDetail({ id }: { id: number }) {
   const sub = useAsync(() => (rol === 'PYME' ? api.miSuscripcion() : Promise.resolve(null)), [id, rol])
   const [mensaje, setMensaje] = useState('')
   const [enviando, setEnviando] = useState(false)
-  const [confirmar, setConfirmar] = useState<{ tipo: 'adjudicar' | 'cerrar'; p?: Postulacion } | null>(null)
+  const [confirmar, setConfirmar] = useState<{ tipo: 'adjudicar' | 'cerrar' | 'eliminar'; p?: Postulacion } | null>(null)
+  const [limite, setLimite] = useState(false)   // pop-up: alcanzó las postulaciones del mes
+  const [premium, setPremium] = useState<Plan | null>(null)
 
   if (lic.loading) return <Cargando />
   if (!l) return <Card><EmptyState icon="alert" titulo="No encontramos esta licitación" texto={lic.error ?? undefined} accion={<Button onClick={() => navigate('/app')}>Volver al panel</Button>} /></Card>
@@ -29,15 +32,24 @@ export function TenderDetail({ id }: { id: number }) {
   const miPost = mias.data?.find((p) => p.licitacionId === l.id)
   const dias = diasHasta(l.fechaCierre)
   const abierta = l.estado === 'Abierta' && dias >= 0
-  const restantes = sub.data ? sub.data.plan.postulacionesMes - sub.data.postulacionesUsadas : 0
+  const restantes = sub.data ? Math.max(0, sub.data.plan.postulacionesMes - sub.data.postulacionesUsadas) : 0
   const volver = rol === 'PYME' ? { to: '/app/explorar', t: 'Explorar licitaciones' } : rol === 'ADMIN' ? { to: '/app/licitaciones-admin', t: 'Licitaciones' } : { to: '/app/licitaciones', t: 'Mis licitaciones' }
 
   const recargar = () => { lic.recargar(); posts.recargar(); mias.recargar(); sub.recargar() }
 
+  // Al llegar al límite del plan el botón sigue activo (el mensaje escrito no se pierde) y se muestra el pop-up recomendando Premium.
+  const avisarLimite = () => {
+    setLimite(true)
+    if (!premium) api.planes().then((ps) => setPremium(ps.find((p) => p.nombre === 'Premium') ?? null)).catch(() => { /* el pop-up funciona sin el detalle */ })
+  }
   const postular = async () => {
+    if (sub.data && restantes <= 0) { avisarLimite(); return }
     setEnviando(true)
     try { await api.postular(l.id, mensaje); toast.ok('¡Postulación enviada! Te avisaremos cuando el Licitador la revise.'); setMensaje(''); recargar() }
-    catch (e) { toast.error((e as Error).message) } finally { setEnviando(false) }
+    catch (e) {
+      if (e instanceof ApiError && e.status === 422) { avisarLimite(); sub.recargar() }   // el backend también valida el límite
+      else toast.error((e as Error).message)
+    } finally { setEnviando(false) }
   }
   const decidir = async (p: Postulacion, estado: 'Aprobada' | 'Rechazada') => {
     try { await api.decidirPostulacion(p.id, estado); toast.ok(estado === 'Aprobada' ? 'Postulación aprobada.' : 'Postulación rechazada.'); recargar() }
@@ -48,6 +60,7 @@ export function TenderDetail({ id }: { id: number }) {
     try {
       if (confirmar.tipo === 'adjudicar' && confirmar.p) { const r = await api.adjudicar(confirmar.p.id); toast.ok('¡Licitación adjudicada! Se abrió el chat con la Pyme.'); recargar(); if (r.conversacionId) setTimeout(() => navigate(`/app/chat/${r.conversacionId}`), 700) }
       if (confirmar.tipo === 'cerrar') { await api.cerrarLicitacion(l.id); toast.ok('Licitación cerrada.'); recargar() }
+      if (confirmar.tipo === 'eliminar') { await api.eliminarLicitacion(l.id); toast.ok('Licitación eliminada.'); setConfirmar(null); navigate('/app/licitaciones', true); return }
     } catch (e) { toast.error((e as Error).message) }
     setConfirmar(null)
   }
@@ -154,20 +167,22 @@ export function TenderDetail({ id }: { id: number }) {
                     </div>
                   )}
                   <Field label="Mensaje para el Licitador" hint="Cuéntale por qué eres la mejor opción."><Textarea rows={5} value={mensaje} onChange={(e) => setMensaje(e.target.value)} placeholder="Experiencia similar, plazos, diferenciadores…" /></Field>
-                  <Button block size="lg" icon="send" loading={enviando} disabled={restantes <= 0} onClick={postular}>Enviar postulación</Button>
-                  {restantes <= 0 && sub.data?.plan.nombre === 'Estándar' && (
-                    <Link to="/app/suscripcion" className="callout callout-teal"><Icon name="crown" size={18} /><span>Llegaste al límite. <b>Pasa a Premium</b> para postular hasta 7 veces.</span></Link>
-                  )}
+                  <Button block size="lg" icon="send" loading={enviando} onClick={postular}>Enviar postulación</Button>
                 </>
               ) : (
                 <EmptyState icon="lock" titulo="Licitación no disponible" texto="Esta licitación ya no recibe postulaciones." />
               )}
             </Card>
           )}
-          {(esDueno || rol === 'ADMIN') && l.estado === 'Abierta' && (
+          {((esDueno || rol === 'ADMIN') && l.estado === 'Abierta' || esDueno) && (
             <Card>
               <CardHeader icon="settings" title="Gestión" />
-              <Button block variant="outline" icon="lock" onClick={() => setConfirmar({ tipo: 'cerrar' })}>{rol === 'ADMIN' ? 'Cerrar licitación (moderación)' : 'Cerrar licitación'}</Button>
+              <div className="gestion">
+                {l.estado === 'Abierta' && <Button block variant="outline" icon="lock" onClick={() => setConfirmar({ tipo: 'cerrar' })}>{rol === 'ADMIN' ? 'Cerrar licitación (moderación)' : 'Cerrar licitación'}</Button>}
+                {esDueno && (l.postulantes === 0
+                  ? <Button block variant="danger" icon="trash" onClick={() => setConfirmar({ tipo: 'eliminar' })}>Eliminar licitación</Button>
+                  : <p className="muted-p"><Icon name="info" size={14} /> No se puede eliminar porque ya tiene postulaciones. {l.estado === 'Abierta' && 'Si ya no la necesitas, ciérrala.'}</p>)}
+              </div>
             </Card>
           )}
           <Card>
@@ -178,11 +193,36 @@ export function TenderDetail({ id }: { id: number }) {
         </div>
       </div>
 
-      <Modal abierto={!!confirmar} onClose={() => setConfirmar(null)} titulo={confirmar?.tipo === 'adjudicar' ? 'Adjudicar licitación' : 'Cerrar licitación'}
-        pie={<><Button variant="ghost" onClick={() => setConfirmar(null)}>Cancelar</Button><Button icon={confirmar?.tipo === 'adjudicar' ? 'award' : 'lock'} onClick={ejecutarConfirmacion}>{confirmar?.tipo === 'adjudicar' ? 'Sí, adjudicar' : 'Sí, cerrar'}</Button></>}>
+      <Modal abierto={limite} onClose={() => setLimite(false)} titulo="Alcanzaste tu límite de postulaciones" ancho={500}
+        pie={sub.data?.plan.nombre === 'Premium'
+          ? <Button onClick={() => setLimite(false)}>Entendido</Button>
+          : <><Button variant="ghost" onClick={() => setLimite(false)}>Ahora no</Button><Button icon="crown" onClick={() => navigate('/app/suscripcion')}>Pasar a Premium</Button></>}>
+        <div className="limite-pop">
+          <span className="limite-ic"><Icon name="crown" size={28} /></span>
+          {sub.data?.plan.nombre === 'Premium' ? (
+            <p>Ya usaste las <b>{sub.data.plan.postulacionesMes} postulaciones</b> de tu plan Premium este mes. Podrás volver a postular a partir del próximo mes.</p>
+          ) : (
+            <>
+              <p>Ya usaste las <b>{sub.data?.plan.postulacionesMes ?? 3} postulaciones</b> de tu plan Estándar este mes. Pasa a <b>Premium</b> y sigue postulando hoy mismo:</p>
+              <ul>
+                {(premium?.beneficios ?? ['7 postulaciones al mes', 'LicitAsist: asistente con inteligencia artificial', 'Prioridad de visibilidad ante los Licitadores']).map((b) => <li key={b}><Icon name="checkcircle" size={16} />{b}</li>)}
+              </ul>
+              {premium && <p className="limite-precio"><b>{clp(premium.precioMensual)}</b> al mes</p>}
+              <p className="limite-nota">Tu mensaje queda guardado aquí para cuando puedas enviarlo.</p>
+            </>
+          )}
+        </div>
+      </Modal>
+
+      <Modal abierto={!!confirmar} onClose={() => setConfirmar(null)} titulo={confirmar?.tipo === 'adjudicar' ? 'Adjudicar licitación' : confirmar?.tipo === 'eliminar' ? 'Eliminar licitación' : 'Cerrar licitación'}
+        pie={<><Button variant="ghost" onClick={() => setConfirmar(null)}>Cancelar</Button>
+          <Button variant={confirmar?.tipo === 'eliminar' ? 'danger' : undefined} icon={confirmar?.tipo === 'adjudicar' ? 'award' : confirmar?.tipo === 'eliminar' ? 'trash' : 'lock'} onClick={ejecutarConfirmacion}>
+            {confirmar?.tipo === 'adjudicar' ? 'Sí, adjudicar' : confirmar?.tipo === 'eliminar' ? 'Sí, eliminar' : 'Sí, cerrar'}</Button></>}>
         {confirmar?.tipo === 'adjudicar'
           ? <p>Vas a adjudicar <b>{l.titulo}</b> a <b>{confirmar.p?.pymeNombre}</b>. Las demás postulaciones pendientes se rechazarán y se abrirá un chat privado con la Pyme.</p>
-          : <p>La licitación <b>{l.titulo}</b> dejará de recibir postulaciones. Esta acción no se puede deshacer.</p>}
+          : confirmar?.tipo === 'eliminar'
+            ? <p>Vas a eliminar <b>{l.titulo}</b>. Desaparecerá de LicitaWatch y no se puede recuperar. Esta acción no se puede deshacer.</p>
+            : <p>La licitación <b>{l.titulo}</b> dejará de recibir postulaciones. Esta acción no se puede deshacer.</p>}
       </Modal>
     </div>
   )

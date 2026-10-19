@@ -330,6 +330,8 @@ export interface Api {
   misLicitaciones(): Promise<Licitacion[]>
   crearLicitacion(d: NuevaLicitacion): Promise<Licitacion>
   cerrarLicitacion(id: number): Promise<Licitacion>
+  /** Solo el Licitador dueño y solo si ninguna Pyme ha postulado (409 si ya tiene postulaciones). */
+  eliminarLicitacion(id: number): Promise<void>
   postulantes(licitacionId: number): Promise<Postulacion[]>
   postular(licitacionId: number, mensaje: string): Promise<Postulacion>
   misPostulaciones(): Promise<Postulacion[]>

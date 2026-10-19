@@ -71,6 +71,7 @@ export const httpApi: Api = {
   misLicitaciones: () => get('/api/licitaciones/mias'),
   crearLicitacion: (d) => post('/api/licitaciones', d),
   cerrarLicitacion: (id) => post(`/api/licitaciones/${id}/cerrar`),
+  async eliminarLicitacion(id) { await req('DELETE', `/api/licitaciones/${id}`) },
   postulantes: (id) => get(`/api/licitaciones/${id}/postulantes`),
   postular: (id, mensaje) => post(`/api/licitaciones/${id}/postular`, { mensaje }),
   misPostulaciones: () => get('/api/postulaciones/mias'),

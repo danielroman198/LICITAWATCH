@@ -24,7 +24,7 @@ public class ChatService {
         this.convs = convs; this.msgs = msgs; this.interno = interno; this.urlNotif = urlNotif; this.urlLicitaciones = urlLicitaciones; this.urlUsuarios = urlUsuarios;
     }
 
-    /** Apertura automática: la llama API Licitaciones al registrarse una postulación. Es idempotente (postulacion_id es único). */
+    /** Apertura automática: la llama API Licitaciones al aprobar (adjudicar) una postulación. Es idempotente (postulacion_id es único). */
     @Transactional
     public Map<String, Long> crear(NuevaConversacion d) {
         Conversacion c = convs.findByPostulacionId(d.postulacionId()).orElseGet(() -> {
@@ -42,13 +42,20 @@ public class ChatService {
         return out;
     }
 
-    /** Título de la licitación y nombre del otro participante: datos de otros servicios, pedidos por REST (no se copian aquí). */
-    private Map<Long, String> titulos(List<Conversacion> cs) {
+    /**
+     * Título de la licitación de cada postulación con chat habilitado (datos de MS-Licitaciones, pedidos por REST; no se copian aquí).
+     * Solo vienen las postulaciones aprobadas con la licitación adjudicada: las demás (p. ej. conversaciones creadas con el flujo
+     * antiguo, que abría el chat al postular) quedan fuera. Si Licitaciones no responde, no se habilita ningún chat.
+     */
+    private Map<Long, String> habilitadas(List<Conversacion> cs) {
         Map<Long, String> out = new java.util.HashMap<>(); Map<Long, Long> licDe = new java.util.HashMap<>();
         if (cs.isEmpty()) return out;
         try {
             JsonNode n = interno.get(urlLicitaciones + "/internal/postulaciones/resumen?ids=" + cs.stream().map(c -> String.valueOf(c.getPostulacionId())).collect(java.util.stream.Collectors.joining(",")), JsonNode.class);
-            for (JsonNode x : n) { out.put(x.path("id").asLong(), x.path("licitacionTitulo").asText("")); licDe.put(x.path("id").asLong(), x.path("licitacionId").asLong()); }
+            for (JsonNode x : n) {
+                if (!x.path("adjudicada").asBoolean(false)) continue;
+                out.put(x.path("id").asLong(), x.path("licitacionTitulo").asText("")); licDe.put(x.path("id").asLong(), x.path("licitacionId").asLong());
+            }
         } catch (Exception ignorada) { }
         lic.putAll(licDe);
         return out;
@@ -61,8 +68,8 @@ public class ChatService {
 
     public List<ConversacionDto> de(long usuarioId) {
         List<Conversacion> cs = convs.findByLicitadorIdOrPymeId(usuarioId, usuarioId);
-        Map<Long, String> titulos = titulos(cs);
-        return cs.stream().map(c -> {
+        Map<Long, String> titulos = habilitadas(cs);
+        return cs.stream().filter(c -> titulos.containsKey(c.getPostulacionId())).map(c -> {
             var ult = msgs.findFirstByConversacionIdOrderByEnviadoAtDesc(c.getId());
             long otro = c.getLicitadorId().equals(usuarioId) ? c.getPymeId() : c.getLicitadorId();
             return new ConversacionDto(c.getId(), c.getPostulacionId(), lic.getOrDefault(c.getPostulacionId(), 0L), titulos.getOrDefault(c.getPostulacionId(), "Licitación"), c.getLicitadorId(), c.getPymeId(),
@@ -74,6 +81,7 @@ public class ChatService {
     private Conversacion participante(long convId, long usuarioId) {
         Conversacion c = convs.findById(convId).orElseThrow(() -> ApiException.noEncontrado("Conversación no encontrada"));
         if (!c.getLicitadorId().equals(usuarioId) && !c.getPymeId().equals(usuarioId)) throw ApiException.prohibido("No participas en esta conversación");
+        if (habilitadas(List.of(c)).isEmpty()) throw ApiException.prohibido("El chat se habilita cuando el Licitador adjudica la licitación");
         return c;
     }
 

@@ -1,0 +1,13 @@
+server.port: ${PORT:8281}
+spring:
+  application.name: ms-usuarios-bd
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/licitawatch_usuarios}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:postgres}
+  jpa:
+    hibernate.ddl-auto: update
+    open-in-view: false
+lw:
+  jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
+  internal-key: ${INTERNAL_KEY:clave-interna-dev}

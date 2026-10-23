@@ -1,0 +1,9 @@
+server.port: ${PORT:8084}
+spring:
+  application.name: ms-notificaciones-bff
+lw:
+  jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
+  internal-key: ${INTERNAL_KEY:clave-interna-dev}
+  publicas: ${LW_PUBLICAS:}
+  urls:
+    bs: ${URL_NOTIFICACIONES_BS:http://localhost:8184}     # capa BS de este microservicio

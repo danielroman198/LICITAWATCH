@@ -1,0 +1,17 @@
+server.port: ${PORT:8186}
+spring:
+  application.name: ms-asistente-bs
+lw:
+  jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
+  internal-key: ${INTERNAL_KEY:clave-interna-dev}
+  urls:
+    # capa BS de cada dominio (llamadas entre microservicios por /internal/**)
+    usuarios: ${URL_USUARIOS_BS:http://localhost:8181}
+    licitaciones: ${URL_LICITACIONES_BS:http://localhost:8182}
+    ventas: ${URL_VENTAS_BS:http://localhost:8183}
+    notificaciones: ${URL_NOTIFICACIONES_BS:http://localhost:8184}
+    chat: ${URL_CHAT_BS:http://localhost:8185}
+  groq:
+    api-key: ${GROQ_API_KEY:}            # vacío = respuestas por heurística local, sin IA externa
+    modelo: ${GROQ_MODEL:llama-3.3-70b-versatile}
+    url: ${GROQ_URL:https://api.groq.com/openai/v1/chat/completions}

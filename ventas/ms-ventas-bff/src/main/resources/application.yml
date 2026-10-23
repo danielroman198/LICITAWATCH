@@ -1,0 +1,9 @@
+server.port: ${PORT:8083}
+spring:
+  application.name: ms-ventas-bff
+lw:
+  jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
+  internal-key: ${INTERNAL_KEY:clave-interna-dev}
+  publicas: ${LW_PUBLICAS:/api/ventas/planes}
+  urls:
+    bs: ${URL_VENTAS_BS:http://localhost:8183}     # capa BS de este microservicio

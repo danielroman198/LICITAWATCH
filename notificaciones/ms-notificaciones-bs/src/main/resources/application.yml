@@ -1,0 +1,29 @@
+server.port: ${PORT:8184}
+spring:
+  application.name: ms-notificaciones-bs
+lw:
+  jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
+  internal-key: ${INTERNAL_KEY:clave-interna-dev}
+  urls:
+    bd: ${URL_NOTIFICACIONES_BD:http://localhost:8284}     # capa BD de este microservicio
+    # capa BS de cada dominio (llamadas entre microservicios por /internal/**)
+    usuarios: ${URL_USUARIOS_BS:http://localhost:8181}
+    licitaciones: ${URL_LICITACIONES_BS:http://localhost:8182}
+    ventas: ${URL_VENTAS_BS:http://localhost:8183}
+    notificaciones: ${URL_NOTIFICACIONES_BS:http://localhost:8184}
+    chat: ${URL_CHAT_BS:http://localhost:8185}
+  correo.remitente: ${MAIL_FROM:no-responder@licitawatch.cl}
+  correo.activo: ${MAIL_ACTIVO:false}      # false = el correo se registra en el log (modo desarrollo)
+spring.mail:
+  host: ${SMTP_HOST:localhost}
+  port: ${SMTP_PORT:1025}
+  username: ${SMTP_USER:}
+  password: ${SMTP_PASS:}
+  default-encoding: UTF-8
+  properties:                                  # Gmail/Outlook: SMTP_AUTH=true y SMTP_STARTTLS=true (puerto 587)
+    mail.smtp.auth: ${SMTP_AUTH:false}
+    mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
+    mail.smtp.starttls.required: ${SMTP_STARTTLS:false}
+    mail.smtp.connectiontimeout: 10000
+    mail.smtp.timeout: 10000
+    mail.smtp.writetimeout: 10000

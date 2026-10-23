@@ -1,0 +1,9 @@
+server.port: ${PORT:8081}
+spring:
+  application.name: ms-usuarios-bff
+lw:
+  jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
+  internal-key: ${INTERNAL_KEY:clave-interna-dev}
+  publicas: ${LW_PUBLICAS:/api/auth/login,/api/auth/recuperar,/api/auth/restablecer,/api/auth/verificar,/api/auth/reenviar-verificacion,/api/usuarios/registro,/api/usuarios/disponibilidad,/api/sii,/api/catalogos}
+  urls:
+    bs: ${URL_USUARIOS_BS:http://localhost:8181}     # capa BS de este microservicio

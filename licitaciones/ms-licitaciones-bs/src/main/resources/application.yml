@@ -1,0 +1,14 @@
+server.port: ${PORT:8182}
+spring:
+  application.name: ms-licitaciones-bs
+lw:
+  jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
+  internal-key: ${INTERNAL_KEY:clave-interna-dev}
+  urls:
+    bd: ${URL_LICITACIONES_BD:http://localhost:8282}     # capa BD de este microservicio
+    # capa BS de cada dominio (llamadas entre microservicios por /internal/**)
+    usuarios: ${URL_USUARIOS_BS:http://localhost:8181}
+    licitaciones: ${URL_LICITACIONES_BS:http://localhost:8182}
+    ventas: ${URL_VENTAS_BS:http://localhost:8183}
+    notificaciones: ${URL_NOTIFICACIONES_BS:http://localhost:8184}
+    chat: ${URL_CHAT_BS:http://localhost:8185}

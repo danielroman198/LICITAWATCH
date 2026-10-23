@@ -5,7 +5,16 @@ Licitadores publican licitaciones (**gratis**); las Pymes postulan y pagan suscr
 ```
 licitawatch/
 ├─ frontend/   React 18 + TypeScript + Vite (tema claro). Modo simulado o API real.
-├─ backend/    Java 21 + Spring Boot 3.3 — microservicios + API Gateway (Maven multi-módulo)
+├─ api-gateway/          Puerta única (Spring Cloud Gateway)
+├─ usuarios/             ms-usuarios-bff · ms-usuarios-bs · ms-usuarios-bd
+├─ licitaciones/         ms-licitaciones-bff · ms-licitaciones-bs · ms-licitaciones-bd
+├─ ventas/               ms-ventas-bff · ms-ventas-bs · ms-ventas-bd · ms-ventas-ambassador
+├─ notificaciones/       ms-notificaciones-bff · ms-notificaciones-bs · ms-notificaciones-bd
+├─ chat/                 ms-chat-bff · ms-chat-bs · ms-chat-bd
+├─ asistente/            ms-asistente-bff · ms-asistente-bs
+├─ licitawatch-common/   Librería común (JWT, errores, cliente entre capas)
+├─ scripts/              iniciar-backend.sh · detener-backend.sh
+├─ pom.xml               Maven padre (Java 21 + Spring Boot 3.3)
 ├─ db/         Scripts PostgreSQL (una BD por microservicio) + instrucciones
 ├─ docs/       Modelo_ER_LicitaWatch.pdf (tu ER oficial; la BD sigue este modelo)
 ```
@@ -21,28 +30,37 @@ La pantalla de login tiene botones de acceso rápido y "Restablecer datos de dem
 
 **Videos con IA** (opcional): copia `hero.mp4` (Home) y `login.mp4` (mitad izquierda del login) a `frontend/public/media/`. Si no existen, se muestra una animación de respaldo (panel de la plataforma / tablet haciendo scroll).
 
-Para usar el backend real: `.env` → `VITE_USE_MOCK=false`, `VITE_API_URL=http://localhost:8080`.
+Para usar el backend real: `.env` → `VITE_USE_MOCK=false`, `VITE_API_URL=http://localhost:8080` (el puerto del API Gateway).
 
-## 2. Backend (microservicios)
-Cada microservicio respeta las capas **BFF → BS → BD** (`bff` = controladores REST + DTO, `bs` = reglas de negocio, `bd` = entidades/repositorios).
+## 2. Backend (microservicios en capas BFF / BS / BD)
+Cada microservicio está dividido en **3 capas desplegadas por separado, cada una con su propio puerto**:
 
-| Servicio | Puerto | Responsabilidad |
-|---|---|---|
-| api-gateway | 8080 | Puerta única, enrutamiento y CORS (`/internal/**` no se expone) |
-| ms-usuarios | 8081 | Login JWT, registro (email y RUT de empresa únicos), recuperación por correo, perfil, admin (bloquear/eliminar/estadísticas), catálogos. **Ambassador SII** |
-| ms-licitaciones | 8082 | Licitaciones, postulaciones (cupo por plan), aprobar (= adjudicar) / rechazar |
-| ms-ventas | 8083 | Planes, suscripciones, pagos, ventas. **Ambassador Transbank** |
-| ms-chat | 8085 | Conversación privada (se abre al registrarse la postulación) |
-| ms-notificaciones | 8084 | Campana + correos |
-| ms-asistente | 8086 | LicitAsist (Premium; Groq opcional) |
+```
+Frontend → API Gateway (8080) → BFF (808x) → BS (818x) → BD (828x) → PostgreSQL
+```
+- **BFF** (`ms-<dominio>-bff`): recibe las peticiones del front, valida el JWT, el rol y los datos de entrada, y llama a su BS.
+- **BS** (`ms-<dominio>-bs`): reglas de negocio. Llama a su BD y a la BS de otros dominios; Notificaciones envía los correos (Gmail SMTP) y Asistente consulta a Groq.
+- **Ambassador de Ventas** (`ms-ventas-ambassador`, puerto **8383**): microservicio aparte y único que habla con la pasarela de pago externa (Transbank Webpay Plus). La BS de Ventas le pide los cobros y nunca conoce las credenciales del proveedor.
+- **BD** (`ms-<dominio>-bd`): entidades JPA y repositorios; **única capa conectada a PostgreSQL**.
 
-Las referencias entre servicios (usuarioId, licitacionId…) se validan por REST (`/internal/**` con `X-Internal-Key`), sin llaves foráneas entre bases.
+| Microservicio | BFF | BS | BD | Responsabilidad |
+|---|---|---|---|---|
+| api-gateway | 8080 | | | Puerta única, enrutamiento a los BFF y CORS |
+| usuarios | 8081 | 8181 | 8281 | Login JWT, registro con verificación por correo, recuperación, perfil, admin, catálogos. **Ambassador SII** |
+| licitaciones | 8082 | 8182 | 8282 | Licitaciones, postulaciones (cupo por plan), aprobar (= adjudicar) / rechazar |
+| ventas | 8083 | 8183 | 8283 | Planes, suscripciones, pagos, ventas. **+ ms-ventas-ambassador (8383) → Transbank** |
+| notificaciones | 8084 | 8184 | 8284 | Campana + correos |
+| chat | 8085 | 8185 | 8285 | Conversación privada (se abre al adjudicar) |
+| asistente | 8086 | 8186 | — | LicitAsist (Premium; Groq opcional). Sin BD |
+
+Las capas internas (`/bs/**`, `/bd/**`, `/ambassador/**`) y las llamadas entre microservicios (`/internal/**`) exigen la cabecera `X-Internal-Key` y el gateway no las expone. Las referencias entre servicios (usuarioId, licitacionId…) se validan por REST, sin llaves foráneas entre bases.
 
 **Requisitos**: JDK 21, PostgreSQL 16 (ver `db/README.md`), Node 20+. Sin Docker.
 
 1. Crea las bases con `db/00_crear_bases.sql` (y opcionalmente `db/01..05`).
-2. Abre `backend/pom.xml` en IntelliJ, `Maven → install` (skip tests) y ejecuta los 7 `*Application` (puertos 8080–8086).
-3. Si tu clave de postgres no es `postgres`: variable de entorno `DB_PASS`.
+2. En la raíz del repositorio: `mvn -DskipTests install`
+3. `./scripts/iniciar-backend.sh` (levanta las 19 aplicaciones en orden BD → Ambassador → BS → BFF → gateway; ~1 minuto) y `./scripts/detener-backend.sh` para apagarlas. En IntelliJ abre el `pom.xml` de la raíz como proyecto; también puedes ejecutar cada `*Application` (primero los `Bd`, luego `VentasAmbassadorApplication`, los `Bs`, los `Bff` y el gateway).
+4. Si tu clave de postgres no es `postgres`: variable de entorno `DB_PASS`.
 
 ### SII (validación de RUT de empresa)
 `SII_MODO=stub` (por defecto): valida dígito verificador y entrega datos de prueba; para empresas públicas conocidas (Falabella 90.749.000-9, Codelco 61.704.000-K, Banco de Chile 97.004.000-5…) devuelve su razón social. `SII_MODO=http` + `SII_URL`/`SII_API_KEY` usa un proveedor real (adaptar el contrato en `SiiHttp`). El registro **nunca bloquea** si el SII no responde: guarda el RUT con `sii_validado=false`.

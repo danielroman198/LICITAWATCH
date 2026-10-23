@@ -1,0 +1,9 @@
+server.port: ${PORT:8086}
+spring:
+  application.name: ms-asistente-bff
+lw:
+  jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
+  internal-key: ${INTERNAL_KEY:clave-interna-dev}
+  publicas: ${LW_PUBLICAS:}
+  urls:
+    bs: ${URL_ASISTENTE_BS:http://localhost:8186}     # capa BS de este microservicio

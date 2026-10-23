@@ -1,0 +1,15 @@
+server.port: ${PORT:8183}
+spring:
+  application.name: ms-ventas-bs
+lw:
+  jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
+  internal-key: ${INTERNAL_KEY:clave-interna-dev}
+  urls:
+    bd: ${URL_VENTAS_BD:http://localhost:8283}     # capa BD de este microservicio
+    ambassador: ${URL_VENTAS_AMBASSADOR:http://localhost:8383}   # Ambassador hacia la pasarela de pago (Transbank)
+    # capa BS de cada dominio (llamadas entre microservicios por /internal/**)
+    usuarios: ${URL_USUARIOS_BS:http://localhost:8181}
+    licitaciones: ${URL_LICITACIONES_BS:http://localhost:8182}
+    ventas: ${URL_VENTAS_BS:http://localhost:8183}
+    notificaciones: ${URL_NOTIFICACIONES_BS:http://localhost:8184}
+    chat: ${URL_CHAT_BS:http://localhost:8185}

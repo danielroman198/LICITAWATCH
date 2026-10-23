@@ -6,6 +6,9 @@ const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://loc
 const TOKEN_KEY = 'lw_token'
 function claveLeidas() { let id = ''; try { id = JSON.parse(atob((localStorage.getItem(TOKEN_KEY) ?? '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).sub } catch { /* sin sesión */ } return 'lw_notif_visto_' + id }
 function leidoHasta() { try { return Number(localStorage.getItem(claveLeidas()) ?? 0) || 0 } catch { return 0 } }
+/** Ids leídas una a una (al apretarlas), además del "último id visto". */
+function leidasSueltas(): number[] { try { return JSON.parse(localStorage.getItem(claveLeidas() + '_ids') ?? '[]') as number[] } catch { return [] } }
+function guardarSueltas(ids: number[]) { try { localStorage.setItem(claveLeidas() + '_ids', JSON.stringify(ids)) } catch { /* sin almacenamiento */ } }
 
 const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) } catch { return null } }
 const setToken = (t: string | null) => { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY) } catch { /* nada */ } }
@@ -89,12 +92,19 @@ export const httpApi: Api = {
   async notificaciones() {
     const lista = await get<Notificacion[]>('/api/notificaciones')
     const visto = leidoHasta()
-    return lista.map((n) => ({ ...n, leida: n.id <= visto }))
+    const sueltas = new Set(leidasSueltas())
+    return lista.map((n) => ({ ...n, leida: n.id <= visto || sueltas.has(n.id) }))
   },
   async marcarNotificacionesLeidas() {
     const lista = await get<Notificacion[]>('/api/notificaciones')
     const max = lista.reduce((m, n) => Math.max(m, n.id), leidoHasta())
     try { localStorage.setItem(claveLeidas(), String(max)) } catch { /* sin almacenamiento */ }
+    guardarSueltas([])
+  },
+  async marcarNotificacionLeida(id) {
+    if (id <= leidoHasta()) return
+    const ids = leidasSueltas()
+    if (!ids.includes(id)) guardarSueltas([...ids, id])
   },
 
   planes: () => get('/api/ventas/planes'),

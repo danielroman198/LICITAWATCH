@@ -552,6 +552,12 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
     db.notificaciones.filter((n) => n.usuarioId === u.id).forEach((n) => { n.leida = true })
     saveDb()
   },
+  async marcarNotificacionLeida(id) {
+    const db = loadDb()
+    const u = actual(db)
+    const n = db.notificaciones.find((x) => x.id === id && x.usuarioId === u.id)
+    if (n) { n.leida = true; saveDb() }
+  },
 
   async planes() { await delay(80); return clon(PLANES) },
   async miSuscripcion(): Promise<Suscripcion> {

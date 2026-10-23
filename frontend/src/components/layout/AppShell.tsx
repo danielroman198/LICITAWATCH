@@ -55,16 +55,26 @@ const NAV: Record<Rol, { titulo?: string; items: Item[] }[]> = {
 
 const ROL_TXT: Record<Rol, string> = { LICITADOR: 'Licitador', PYME: 'Pyme', ADMIN: 'Administrador' }
 
+// Avisa a la campana, al panel del inicio y a la página de notificaciones que cambió el estado "leída".
+const EVENTO_NOTIF = 'lw-notif-leidas'
+
+/** Marca una notificación como leída al apretarla; desaparece de la campana y de los paneles. */
+export async function leerNotificacion(id: number) {
+  try { await api.marcarNotificacionLeida(id) } finally { window.dispatchEvent(new Event(EVENTO_NOTIF)) }
+}
+
 export function useNotificaciones() {
   const [lista, setLista] = useState<Notificacion[]>([])
   const cargar = useCallback(() => { api.notificaciones().then(setLista).catch(() => undefined) }, [])
   useEffect(() => {
     cargar()
     const t = setInterval(cargar, 15000)
-    return () => clearInterval(t)
+    window.addEventListener(EVENTO_NOTIF, cargar)
+    return () => { clearInterval(t); window.removeEventListener(EVENTO_NOTIF, cargar) }
   }, [cargar])
-  const marcar = useCallback(async () => { await api.marcarNotificacionesLeidas(); cargar() }, [cargar])
-  return { lista, noLeidas: lista.filter((n) => !n.leida).length, marcar, recargar: cargar }
+  const marcar = useCallback(async () => { await api.marcarNotificacionesLeidas(); window.dispatchEvent(new Event(EVENTO_NOTIF)) }, [])
+  const noLeidas = lista.filter((n) => !n.leida)
+  return { lista, pendientes: noLeidas, noLeidas: noLeidas.length, marcar, recargar: cargar }
 }
 
 const ICONO_NOTIF: Record<string, IconName> = {
@@ -90,8 +100,9 @@ export function destinoNotificacion(tipo: string, rol: Rol): string | null {
 /** Fila de notificación: si tiene destino es un enlace; si no, un bloque normal. */
 export function NotifItem({ n, rol, className, onIr, children }: { n: Notificacion; rol: Rol; className: string; onIr?: () => void; children: ReactNode }) {
   const destino = destinoNotificacion(n.tipo, rol)
-  if (!destino) return <div className={className}>{children}</div>
-  return <Link to={destino} className={`${className} notif-link`} onClick={onIr}>{children}<Icon name="chevright" size={16} className="notif-go" /></Link>
+  const ir = () => { if (!n.leida) leerNotificacion(n.id); onIr?.() }
+  if (!destino) return <div className={`${className} ${n.leida ? '' : 'notif-link'}`} onClick={ir} role={n.leida ? undefined : 'button'} title={n.leida ? undefined : 'Marcar como leída'}>{children}</div>
+  return <Link to={destino} className={`${className} notif-link`} onClick={ir}>{children}<Icon name="chevright" size={16} className="notif-go" /></Link>
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -194,9 +205,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
               {campana && (
                 <div className="dropdown notif-dd">
-                  <div className="dd-head"><b>Notificaciones</b><button className="link-btn" onClick={notif.marcar}>Marcar leídas</button></div>
-                  {notif.lista.length === 0 ? <p className="dd-empty">Sin notificaciones</p> : notif.lista.slice(0, 5).map((n) => (
-                    <NotifItem key={n.id} n={n} rol={u.rol} className={`notif-item ${n.leida ? '' : 'unread'}`} onIr={() => setCampana(false)}>
+                  <div className="dd-head"><b>Notificaciones</b>{notif.noLeidas > 0 && <button className="link-btn" onClick={notif.marcar}>Marcar leídas</button>}</div>
+                  {notif.noLeidas === 0 ? <p className="dd-empty">Estás al día. No tienes notificaciones nuevas.</p> : notif.pendientes.slice(0, 5).map((n) => (
+                    <NotifItem key={n.id} n={n} rol={u.rol} className="notif-item unread" onIr={() => setCampana(false)}>
                       <span className="notif-ic"><Icon name={iconoNotificacion(n.tipo)} size={16} /></span>
                       <div><b>{n.titulo}</b><p>{n.detalle}</p><small>{hace(n.createdAt)}</small></div>
                     </NotifItem>

@@ -353,6 +353,8 @@ export interface Api {
   // Notificaciones
   notificaciones(): Promise<Notificacion[]>
   marcarNotificacionesLeidas(): Promise<void>
+  /** Marca una sola notificación como leída (al apretarla). */
+  marcarNotificacionLeida(id: number): Promise<void>
 
   // Suscripciones y pagos (MS-Ventas + Ambassador Transbank)
   planes(): Promise<Plan[]>

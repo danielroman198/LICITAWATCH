@@ -70,7 +70,7 @@ export function TenderCard({ l, acciones }: { l: Licitacion; acciones?: ReactNod
 
 /* ---------- Panel de notificaciones (columna derecha) ---------- */
 export function NotifPanel({ limite = 4 }: { limite?: number }) {
-  const { lista, marcar } = useNotificaciones()
+  const { pendientes, marcar } = useNotificaciones()
   const rol = useAuth().sesion!.usuario.rol
   return (
     <div className="card card-pad notif-panel">
@@ -78,13 +78,13 @@ export function NotifPanel({ limite = 4 }: { limite?: number }) {
         <div className="card-title-wrap"><span className="card-title-icon"><Icon name="bell" size={18} /></span><h3 className="card-title">Notificaciones</h3></div>
         <Link to="/app/notificaciones" className="link">Ver todas</Link>
       </div>
-      {lista.length === 0 ? <p className="muted-p">Todo al día. No tienes notificaciones.</p> : lista.slice(0, limite).map((n) => (
-        <NotifItem key={n.id} n={n} rol={rol} className={`notif-item ${n.leida ? '' : 'unread'}`}>
+      {pendientes.length === 0 ? <p className="muted-p">Todo al día. No tienes notificaciones nuevas.</p> : pendientes.slice(0, limite).map((n) => (
+        <NotifItem key={n.id} n={n} rol={rol} className="notif-item unread">
           <span className="notif-ic"><Icon name={iconoNotificacion(n.tipo)} size={16} /></span>
           <div><b>{n.titulo}</b><p>{n.detalle}</p><small>{hace(n.createdAt)}</small></div>
         </NotifItem>
       ))}
-      {lista.some((n) => !n.leida) && <button className="btn btn-soft btn-sm btn-block" onClick={marcar}>Marcar todas como leídas</button>}
+      {pendientes.length > 1 && <button className="btn btn-soft btn-sm btn-block" onClick={marcar}>Marcar todas como leídas</button>}
     </div>
   )
 }

@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Badge, Button, Card, EmptyState, PageHeader } from '../../components/ui/ui'
 import { NotifItem, iconoNotificacion, useNotificaciones } from '../../components/layout/AppShell'
 import { useAuth } from '../../context/AuthContext'
@@ -8,10 +7,9 @@ import { fechaHora, hace } from '../../lib/format'
 export function Notifications() {
   const n = useNotificaciones()
   const rol = useAuth().sesion!.usuario.rol
-  useEffect(() => { /* se mantienen como "nuevas" hasta que el usuario las marque */ }, [])
   return (
     <div className="stack">
-      <PageHeader title="Notificaciones" subtitle="Todo lo que pasa con tus licitaciones, postulaciones y pagos."
+      <PageHeader title="Notificaciones" subtitle="Historial completo. Al apretar una notificación queda como leída y sale de la campana."
         actions={<Button variant="soft" icon="checkcircle" onClick={n.marcar} disabled={n.noLeidas === 0}>Marcar todas como leídas</Button>} />
       <Card pad={false}>
         {n.lista.length === 0 ? <EmptyState icon="bell" titulo="Sin notificaciones" texto="Cuando haya novedades las verás aquí." /> : (

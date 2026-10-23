@@ -59,6 +59,7 @@ public class UsuariosBd {
         try { return Optional.of(bd.get(url + "/bd/perfiles/" + usuarioId, PerfilFila.class)); }
         catch (ApiException e) { if (e.getStatus() == HttpStatus.NOT_FOUND) return Optional.empty(); throw e; }
     }
+    public List<Long> pymesPorRubro(int rubroId) { return List.of(bd.get(url + "/bd/pymes/por-rubro/" + rubroId, Long[].class)); }
     public List<PerfilFila> perfiles() { return List.of(bd.get(url + "/bd/perfiles", PerfilFila[].class)); }
     public PerfilFila actualizarPerfil(long usuarioId, PerfilFila cambios) { return bd.put(url + "/bd/perfiles/" + usuarioId, cambios, PerfilFila.class); }
     public boolean rutExiste(String rut) { return bd.get(url + "/bd/perfiles/existe?rut=" + q(rut), JsonNode.class).path("existe").asBoolean(); }

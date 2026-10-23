@@ -16,7 +16,7 @@ public final class Repos {
     }
     public interface AdministradorRepo extends JpaRepository<Administrador, Long> { Optional<Administrador> findByUsuarioId(Long usuarioId); void deleteByUsuarioId(Long usuarioId); }
     public interface LicitadorRepo extends JpaRepository<Licitador, Long> { Optional<Licitador> findByUsuarioId(Long usuarioId); boolean existsByRut(String rut); boolean existsByRutPersona(String rutPersona); void deleteByUsuarioId(Long usuarioId); }
-    public interface PymeRepo extends JpaRepository<Pyme, Long> { Optional<Pyme> findByUsuarioId(Long usuarioId); boolean existsByRut(String rut); boolean existsByRutPersona(String rutPersona); void deleteByUsuarioId(Long usuarioId); }
+    public interface PymeRepo extends JpaRepository<Pyme, Long> { Optional<Pyme> findByUsuarioId(Long usuarioId); List<Pyme> findByRubroId(Integer rubroId); boolean existsByRut(String rut); boolean existsByRutPersona(String rutPersona); void deleteByUsuarioId(Long usuarioId); }
     public interface RubroRepo extends JpaRepository<Rubro, Integer> { List<Rubro> findAllByOrderByNombre(); }
     public interface RegionRepo extends JpaRepository<Region, Integer> { List<Region> findAllByOrderByNombre(); }
     public interface CiudadRepo extends JpaRepository<Ciudad, Integer> { List<Ciudad> findAllByOrderByNombre(); List<Ciudad> findByRegionIdOrderByNombre(Integer regionId); }

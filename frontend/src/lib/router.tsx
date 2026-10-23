@@ -20,6 +20,13 @@ export function navigate(to: string, replace = false) {
   notify()
 }
 
+// Página privada que se quiso abrir sin sesión (p. ej. el enlace de un correo): se retoma después de iniciar sesión.
+const CLAVE_DESTINO = 'lw_destino'
+export function recordarDestino(ruta: string) { try { sessionStorage.setItem(CLAVE_DESTINO, ruta) } catch { /* sin almacenamiento */ } }
+export function tomarDestino(): string | null {
+  try { const r = sessionStorage.getItem(CLAVE_DESTINO); sessionStorage.removeItem(CLAVE_DESTINO); return r && r.startsWith('/app') ? r : null } catch { return null }
+}
+
 function subscribe(l: Listener) {
   listeners.add(l)
   return () => listeners.delete(l)

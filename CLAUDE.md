@@ -29,6 +29,7 @@ Front → API Gateway → **BFF** → **BS** → **BD** → PostgreSQL. Las capa
 - **Ambassador** (`ms-ventas-ambassador`, `/ambassador/webpay/transacciones`): `TransbankWebpay` habla con Webpay Plus real (API REST v1.2, ambiente de integración por defecto): crear, confirmar (commit) y estado. Sin modo simulado.
 - **Pago Premium (Webpay Plus con redirección)**: `POST /api/ventas/webpay` → { token, url } → el navegador hace POST con `token_ws` al formulario de Transbank → Transbank vuelve a `/api/ventas/webpay/retorno` (BFF, pública) → la BS confirma y recién ahí registra la compra en la BD → 303 a `/app/suscripcion?pago=aprobado|rechazado|anulado|expirado|error&…`. El usuario y el plan viajan en el `session_id` de Transbank (`<usuarioId>-<planId>`); `id_transaccion` = orden de compra (`buy_order`), que evita registrar dos veces. En modo mock del front `iniciarPagoWebpay` aprueba al tiro y devuelve una `url` interna sin token.
 - `/bs/**`, `/bd/**`, `/ambassador/**` e `/internal/**` exigen la cabecera `X-Internal-Key`; el gateway **no** expone ninguna de ellas. Errores JSON: `{"mensaje": "..."}`; `InternalClient` relanza el error de la capa llamada con el mismo código y mensaje.
+- **Aviso por rubro**: al publicar una licitación, ms-licitaciones-bs (en segundo plano) avisa a las Pymes activas y verificadas del mismo rubro (`/internal/usuarios/pymes-por-rubro/{id}`) con el tipo «Licitación de tu rubro»: campana para todas, correo con enlace `APP_URL/app/licitacion/{id}` solo a las Premium vigentes. Si se abre el enlace sin sesión, tras el login se vuelve a esa página (`recordarDestino`/`tomarDestino` en `lib/router.tsx`).
 - Los textos libres que van en una URL entre capas se codifican con `InternalClient.q(...)` (el cliente usa la URL tal cual).
 
 ## Base de datos (reglas del ER — no romperlas)
@@ -54,4 +55,4 @@ Front → API Gateway → **BFF** → **BS** → **BD** → PostgreSQL. Las capa
 - Cambios pequeños y revisables; no tocar la estructura del ER sin avisar.
 
 ## Pendientes conocidos
-Alertas por correo a pymes Premium según rubro, subida real de archivos (hoy solo URL), pruebas automáticas, escena animada del login (`frontend/public/media/login-escena.svg` creada, sin conectar a `Auth.tsx`).
+Subida real de archivos (hoy solo URL), pruebas automáticas, escena animada del login (`frontend/public/media/login-escena.svg` creada, sin conectar a `Auth.tsx`).

@@ -5,6 +5,7 @@ import cl.licitawatch.usuarios.bs.UsuariosBd.UsuarioFila;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Endpoints de servicio a servicio (cabecera X-Internal-Key): los usan las capas BS de los demás dominios. */
@@ -26,4 +27,8 @@ public class InternalController {
         m.put("rut", p != null ? Rut.formatear(p.rut()) : null); m.put("nombreContacto", p != null ? p.nombreContacto() : null);   // p. ej. para el chat
         return m;
     }
+
+    /** Pymes activas y verificadas de un rubro: Licitaciones les avisa cuando se publica una licitación de ese rubro. */
+    @GetMapping("/pymes-por-rubro/{rubroId}")
+    public List<Long> pymesPorRubro(@PathVariable int rubroId) { return bd.pymesPorRubro(rubroId); }
 }

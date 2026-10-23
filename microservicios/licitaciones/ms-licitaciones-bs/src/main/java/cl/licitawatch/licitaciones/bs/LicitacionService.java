@@ -4,10 +4,16 @@ import cl.licitawatch.common.ApiException;
 import cl.licitawatch.common.InternalClient;
 import cl.licitawatch.licitaciones.bs.Dto.*;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.text.NumberFormat;
 import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,12 +32,16 @@ public class LicitacionService {
                Instant createdAt, long postulantes, Long pymeAdjudicadaId) {}
     record Post(Long id, Long licitacionId, Long pymeId, String mensaje, LocalDate fechaPostulacion, String estado, Instant updatedAt) {}
 
+    private static final Logger log = LoggerFactory.getLogger(LicitacionService.class);
+    private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     private final InternalClient interno;
-    private final String urlBd, urlUsuarios, urlVentas, urlChat, urlNotif;
+    private final String urlBd, urlUsuarios, urlVentas, urlChat, urlNotif, appUrl;
+    /** Los avisos a las Pymes del rubro se envían en segundo plano para no demorar la publicación. */
+    private final ExecutorService avisos = Executors.newSingleThreadExecutor();
 
     public LicitacionService(InternalClient interno, @Value("${lw.urls.bd}") String urlBd, @Value("${lw.urls.usuarios}") String urlUsuarios, @Value("${lw.urls.ventas}") String urlVentas,
-                             @Value("${lw.urls.chat}") String urlChat, @Value("${lw.urls.notificaciones}") String urlNotif) {
-        this.interno = interno; this.urlBd = urlBd; this.urlUsuarios = urlUsuarios; this.urlVentas = urlVentas; this.urlChat = urlChat; this.urlNotif = urlNotif;
+                             @Value("${lw.urls.chat}") String urlChat, @Value("${lw.urls.notificaciones}") String urlNotif, @Value("${lw.app.url}") String appUrl) {
+        this.interno = interno; this.urlBd = urlBd; this.urlUsuarios = urlUsuarios; this.urlVentas = urlVentas; this.urlChat = urlChat; this.urlNotif = urlNotif; this.appUrl = appUrl;
     }
 
     /** Caché por solicitud para no repetir llamadas REST al armar una lista. */
@@ -103,7 +113,52 @@ public class LicitacionService {
         nueva.put("archivoNombre", doc == null ? null : doc.nombre()); nueva.put("tipoArchivo", doc == null ? null : doc.tipo());
         Lic l = interno.post(urlBd + "/bd/licitaciones", nueva, Lic.class);
         interno.notificar(urlNotif, licitadorId, "Licitación publicada", "Licitación publicada", "Tu licitación \"" + l.titulo() + "\" ya es visible para las Pymes del rubro.", false);
+        avisos.submit(() -> avisarPymesDelRubro(l));
         return dto(l, new Ctx());
+    }
+
+    /**
+     * Aviso a las Pymes del mismo rubro de la licitación (activas y con correo verificado): todas reciben la notificación en la campana y
+     * las Premium con suscripción vigente además el correo con el enlace a la licitación (beneficio «Alertas por correo de licitaciones de tu rubro»).
+     */
+    void avisarPymesDelRubro(Lic l) {
+        try {
+            List<Long> pymes = List.of(interno.get(urlUsuarios + "/internal/usuarios/pymes-por-rubro/" + l.rubroId(), Long[].class));
+            if (pymes.isEmpty()) return;
+            Map<String, String> premium = interno.get(urlVentas + "/internal/ventas/planes", InternalClient.MAPA).entrySet().stream()
+                    .collect(Collectors.toMap(Map.Entry::getKey, e -> String.valueOf(e.getValue())));
+            String rubro = nombreCatalogo("rubros", l.rubroId()), region = nombreCatalogo("regiones", l.regionId());
+            Ctx c = new Ctx();
+            String licitador = c.nombre(l.licitadorId());
+            String asunto = "Nueva licitación de " + rubro + ": " + l.titulo();
+            for (long pymeId : pymes) {
+                boolean correo = "Premium".equals(premium.get(String.valueOf(pymeId)));
+                String cuerpo = "Hola, " + c.nombre(pymeId) + ":\n\n"
+                        + licitador + " publicó en LicitaWatch una licitación de tu rubro (" + rubro + ").\n\n"
+                        + "  " + l.titulo() + "\n"
+                        + "  Región: " + region + "\n"
+                        + "  Presupuesto: " + presupuesto(l) + "\n"
+                        + "  Cierra el: " + l.fechaCierre().format(FECHA) + "\n\n"
+                        + "Revisa el detalle y postula aquí:\n" + appUrl + "/app/licitacion/" + l.id() + "\n\n"
+                        + "Recibes este aviso porque tu empresa es del rubro " + rubro + " y tienes el plan Premium.\n\nEquipo LicitaWatch";
+                interno.notificar(urlNotif, pymeId, "Licitación de tu rubro", asunto, cuerpo, correo);
+            }
+            log.info("Licitación {} ({}): avisadas {} Pymes del rubro", l.id(), rubro, pymes.size());
+        } catch (Exception e) { log.warn("No se pudo avisar a las Pymes del rubro de la licitación {}: {}", l.id(), e.getMessage()); }
+    }
+
+    private String nombreCatalogo(String catalogo, Integer id) {
+        try {
+            for (JsonNode n : interno.get(urlUsuarios + "/bs/catalogos/" + catalogo, JsonNode.class)) if (n.path("id").asInt() == id) return n.path("nombre").asText();
+        } catch (Exception ignorada) { /* catálogo no disponible */ }
+        return "—";
+    }
+    private static String presupuesto(Lic l) {
+        NumberFormat clp = NumberFormat.getIntegerInstance(Locale.of("es", "CL"));
+        if (l.presupuestoMin() == null && l.presupuestoMax() == null) return "a convenir";
+        if (l.presupuestoMin() == null) return "hasta $" + clp.format(l.presupuestoMax());
+        if (l.presupuestoMax() == null) return "desde $" + clp.format(l.presupuestoMin());
+        return "$" + clp.format(l.presupuestoMin()) + " – $" + clp.format(l.presupuestoMax());
     }
 
     public List<LicitacionDto> buscar(String q, Integer rubro, Integer region, String estado, Long maxP) {

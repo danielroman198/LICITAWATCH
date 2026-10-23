@@ -28,6 +28,7 @@ psql -U postgres -d licitawatch_usuarios -f db/migracion_ciudades_rm.sql      # 
 psql -U postgres -d licitawatch_usuarios -f db/migracion_foto_perfil.sql      # foto de perfil (usuario.foto)
 psql -U postgres -d licitawatch_usuarios -f db/migracion_email_verificado.sql # verificación de correo al registrarse (usuario.email_verificado)
 psql -U postgres -d licitawatch_chat     -f db/migracion_chat_eliminar.sql     # eliminar conversación solo para mí (conversacion.borrada_*_at)
+psql -U postgres -d licitawatch_notificaciones -f db/migracion_tipo_licitacion_rubro.sql  # tipo de notificación «Licitación de tu rubro»
 ```
 Si prefieres partir de cero (se pierden los datos de prueba): borra las 5 bases y vuelve a ejecutar los pasos 2 (00 a 05).
 

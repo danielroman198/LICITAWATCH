@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, USE_MOCK, mockApi } from '../../api'
 import { ApiError } from '../../api/errors'
 import { ERROR_SIN_VERIFICAR } from '../../api/types'
-import { Link, navigate, useLocation } from '../../lib/router'
+import { Link, navigate, tomarDestino, useLocation } from '../../lib/router'
 import { Logo } from '../../components/layout/Logo'
 import { LoginEnVivo } from '../../components/layout/EscenasAuth'
 import { MediaVideo } from '../../components/layout/MediaVideo'
@@ -49,7 +49,7 @@ export function Login() {
     try {
       await login(em, pw)
       toast.ok('¡Bienvenido de vuelta!')
-      navigate('/app', true)
+      if (window.location.pathname === '/login') navigate(tomarDestino() ?? '/app', true)   // vuelve a la página que se quiso abrir (p. ej. el enlace de un correo)
     } catch (err) {
       setError((err as Error).message)
       setSinVerificar(err instanceof ApiError && err.status === ERROR_SIN_VERIFICAR)

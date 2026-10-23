@@ -101,3 +101,9 @@ td.row-actions { display: table-cell; text-align: right; white-space: nowrap; } 
 .chat-item-contacto { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chat-head .chat-head-datos { display: flex; flex-wrap: wrap; gap: 4px 12px; white-space: normal; } .chat-head-datos span { display: inline-flex; align-items: center; gap: 4px; } .chat-head-datos b { color: var(--text); font-weight: 600; }
 .chat-del { flex: none; color: var(--muted); } .chat-del:hover { color: var(--red); background: var(--red-soft); }
+
+/* ---- Pop-up: nueva licitación de tu rubro ---- */
+.aviso-rubro { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 6px 4px; }
+.aviso-rubro-icono { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; color: var(--accent); background: var(--surface-2); animation: aviso-pulso 1.6s ease-out 2; }
+.aviso-rubro h3 { font-size: 20px; } .aviso-rubro p { color: var(--muted); } .aviso-rubro small { color: var(--muted); font-size: 12.5px; }
+@keyframes aviso-pulso { 0% { box-shadow: 0 0 0 0 rgba(20, 184, 166, .45); } 100% { box-shadow: 0 0 0 18px rgba(20, 184, 166, 0); } }

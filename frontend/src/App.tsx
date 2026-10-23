@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider, Cargando } from './components/ui/ui'
-import { Router, navigate, useLocation, type RouteDef } from './lib/router'
+import { Router, navigate, recordarDestino, tomarDestino, useLocation, type RouteDef } from './lib/router'
 import type { Rol } from './api/types'
 import { Splash } from './components/layout/Splash'
 import { AppShell } from './components/layout/AppShell'
@@ -70,10 +70,12 @@ function Rutas() {
   const { sesion, cargando } = useAuth()
   const { path } = useLocation()
   const enApp = path === '/app' || path.startsWith('/app/')
+  const huboSesion = useRef(false)   // al cerrar sesión no se recuerda la página: solo cuando se llega sin sesión (p. ej. el enlace de un correo)
+  if (sesion) huboSesion.current = true
   useEffect(() => {
     if (cargando) return
-    if (enApp && !sesion) navigate('/login', true)
-    else if (sesion && ['/login', '/registro', '/registro/licitador', '/registro/pyme'].includes(path)) navigate('/app', true)
+    if (enApp && !sesion) { if (path !== '/app' && !huboSesion.current) recordarDestino(window.location.pathname + window.location.search); navigate('/login', true) }
+    else if (sesion && ['/login', '/registro', '/registro/licitador', '/registro/pyme'].includes(path)) navigate(tomarDestino() ?? '/app', true)
   }, [cargando, sesion, enApp, path])
   useEffect(() => { window.scrollTo(0, 0) }, [path])
   if (cargando) return <Cargando />

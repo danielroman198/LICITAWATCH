@@ -322,9 +322,10 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
     const l: LicitacionDB = { id: nextId(db, 'licitacion'), licitadorId: u.id, ...clon(d), estado: 'Abierta', createdAt: ahora() }
     db.licitaciones.push(l)
     notificar(db, u.id, 'Licitación publicada', 'Licitación publicada', `Tu licitación "${l.titulo}" ya es visible para las Pymes.`)
-    // Alertas Premium por rubro
+    // Aviso a las Pymes del mismo rubro: campana para todas, correo solo a las Premium (igual que el backend).
     db.perfiles.filter((p) => p.rubroId === l.rubroId && db.usuarios.find((x) => x.id === p.usuarioId)?.rol === 'PYME').forEach((p) => {
-      if (planActual(db, p.usuarioId).plan.nombre === 'Premium') notificar(db, p.usuarioId, 'Licitación publicada', 'Nueva licitación en tu rubro', `Se publicó "${l.titulo}". Alerta exclusiva Premium.`)
+      notificar(db, p.usuarioId, 'Licitación de tu rubro', `Nueva licitación de tu rubro: ${l.titulo}`,
+        `${nombreDe(db, u.id)} publicó "${l.titulo}". Revisa el detalle y postula aquí: /app/licitacion/${l.id}`, planActual(db, p.usuarioId).plan.nombre === 'Premium')
     })
     saveDb()
     return aLicitacion(db, l)

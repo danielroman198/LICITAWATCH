@@ -121,6 +121,13 @@ public class UsuariosBdController {
         return out;
     }
 
+    /** Ids de las Pymes de ese rubro con cuenta activa y correo verificado (para avisarles de licitaciones nuevas de su rubro). */
+    @GetMapping("/pymes/por-rubro/{rubroId}")
+    public List<Long> pymesPorRubro(@PathVariable int rubroId) {
+        List<Long> ids = pymes.findByRubroId(rubroId).stream().map(Pyme::getUsuarioId).toList();
+        return usuarios.findAllById(ids).stream().filter(u -> u.isActivo() && u.isEmailVerificado()).map(Usuario::getId).sorted().toList();
+    }
+
     /** ¿Ya hay un licitador o pyme con ese RUT de empresa (rut) o de persona de contacto (rutPersona)? */
     @GetMapping("/perfiles/existe")
     public Map<String, Boolean> existe(@RequestParam(required = false) String rut, @RequestParam(required = false) String rutPersona) {

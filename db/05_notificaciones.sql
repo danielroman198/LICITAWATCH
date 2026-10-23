@@ -19,5 +19,6 @@ CREATE INDEX IF NOT EXISTS ix_notif_usuario ON notificacion(usuario_id);
 
 INSERT INTO tipo_notificacion (nombre) VALUES
   ('Licitación publicada'), ('Postulación recibida'), ('Postulación aprobada'),
-  ('Postulación rechazada'), ('Pago confirmado'), ('Mensaje nuevo')
+  ('Postulación rechazada'), ('Pago confirmado'), ('Mensaje nuevo'),
+  ('Licitación de tu rubro')                    -- aviso a las Pymes del rubro (correo solo a las Premium)
 ON CONFLICT DO NOTHING;

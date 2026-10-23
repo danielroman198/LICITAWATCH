@@ -179,6 +179,7 @@ export type TipoNotificacion =
   | 'Licitación adjudicada'
   | 'Pago confirmado'
   | 'Mensaje nuevo'
+  | 'Licitación de tu rubro'
 
 export interface Notificacion {
   id: number

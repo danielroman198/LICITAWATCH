@@ -33,7 +33,8 @@ public class NotificacionService {
             "Postulación aprobada", "Tu postulación fue aprobada y la licitación te fue adjudicada.",
             "Postulación rechazada", "Tu postulación no fue seleccionada.",
             "Pago confirmado", "Tu pago fue confirmado y tu suscripción está activa.",
-            "Mensaje nuevo", "Tienes un mensaje nuevo en una de tus conversaciones.");
+            "Mensaje nuevo", "Tienes un mensaje nuevo en una de tus conversaciones.",
+            "Licitación de tu rubro", "Se publicó una licitación nueva de tu rubro. Revísala y postula a tiempo.");
 
     /**
      * Un registro por evento importante (ER). Si el tipo no está en el catálogo (p. ej. "CORREO": bienvenida y recuperación de

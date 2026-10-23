@@ -4,7 +4,7 @@ import type { Notificacion, Rol } from '../../api/types'
 import { Icon, type IconName } from '../../lib/icons'
 import { Link, isActive, navigate, useLocation } from '../../lib/router'
 import { useAuth } from '../../context/AuthContext'
-import { Avatar, Badge } from '../ui/ui'
+import { Avatar, Badge, Button, Modal } from '../ui/ui'
 import { Logo } from './Logo'
 import { hace } from '../../lib/format'
 
@@ -79,7 +79,7 @@ export function useNotificaciones() {
 
 const ICONO_NOTIF: Record<string, IconName> = {
   'Licitación publicada': 'file', 'Postulación recibida': 'send', 'Postulación aprobada': 'checkcircle', 'Postulación rechazada': 'xcircle',
-  'Licitación adjudicada': 'award', 'Pago confirmado': 'card', 'Mensaje nuevo': 'chat',
+  'Licitación adjudicada': 'award', 'Pago confirmado': 'card', 'Mensaje nuevo': 'chat', 'Licitación de tu rubro': 'search',
 }
 export const iconoNotificacion = (tipo: string): IconName => ICONO_NOTIF[tipo] ?? 'bell'
 
@@ -93,6 +93,7 @@ export function destinoNotificacion(tipo: string, rol: Rol): string | null {
     case 'Postulación rechazada':
     case 'Licitación adjudicada': return rol === 'PYME' ? '/app/postulaciones' : '/app/licitaciones'
     case 'Pago confirmado': return '/app/suscripcion'
+    case 'Licitación de tu rubro': return '/app/explorar'
     default: return null
   }
 }
@@ -103,6 +104,45 @@ export function NotifItem({ n, rol, className, onIr, children }: { n: Notificaci
   const ir = () => { if (!n.leida) leerNotificacion(n.id); onIr?.() }
   if (!destino) return <div className={`${className} ${n.leida ? '' : 'notif-link'}`} onClick={ir} role={n.leida ? undefined : 'button'} title={n.leida ? undefined : 'Marcar como leída'}>{children}</div>
   return <Link to={destino} className={`${className} notif-link`} onClick={ir}>{children}<Icon name="chevright" size={16} className="notif-go" /></Link>
+}
+
+/**
+ * Pop-up «nueva licitación de tu rubro» (solo Pyme): aparece una vez por aviso no leído, apenas la campana lo trae (sondeo cada 15 s
+ * o al entrar). Premium: invita a revisar el correo, que trae el enlace directo. Estándar: lleva a Explorar (no recibe correo).
+ */
+function AvisoRubro({ usuarioId, pendientes }: { usuarioId: number; pendientes: Notificacion[] }) {
+  const clave = 'lw_aviso_rubro_' + usuarioId
+  const vistos = (): number[] => { try { return JSON.parse(localStorage.getItem(clave) ?? '[]') as number[] } catch { return [] } }
+  const [aviso, setAviso] = useState<{ ids: number[]; premium: boolean } | null>(null)
+  const nuevos = pendientes.filter((n) => n.tipo === 'Licitación de tu rubro' && !vistos().includes(n.id)).map((n) => n.id)
+  const firma = nuevos.join(',')
+  useEffect(() => {
+    if (!nuevos.length || aviso) return
+    api.miSuscripcion().then((s) => s.plan.nombre === 'Premium').catch(() => false).then((premium) => setAviso({ ids: nuevos, premium }))
+  }, [firma]) // eslint-disable-line
+  if (!aviso) return null
+  const cerrar = () => {
+    try { localStorage.setItem(clave, JSON.stringify([...vistos(), ...aviso.ids].slice(-200))) } catch { /* sin almacenamiento */ }
+    setAviso(null)
+  }
+  const verLicitaciones = () => { aviso.ids.forEach((id) => leerNotificacion(id)); cerrar(); navigate('/app/explorar') }
+  const varias = aviso.ids.length > 1
+  return (
+    <Modal abierto onClose={cerrar} titulo={varias ? `${aviso.ids.length} licitaciones nuevas de tu rubro` : 'Nueva licitación de tu rubro'} ancho={440}
+      pie={<><Button variant="ghost" onClick={cerrar}>Cerrar</Button><Button icon="search" onClick={verLicitaciones}>Ver licitaciones</Button></>}>
+      <div className="aviso-rubro">
+        <div className="aviso-rubro-icono"><Icon name={aviso.premium ? 'mail' : 'bell'} size={34} /></div>
+        {aviso.premium ? <>
+          <h3>¡Revisa tu correo!</h3>
+          <p>Se {varias ? 'publicaron licitaciones' : 'publicó una licitación'} de tu rubro. Te enviamos el detalle por correo con el enlace directo para que postules a tiempo.</p>
+        </> : <>
+          <h3>¡Hay una oportunidad para ti!</h3>
+          <p>Se {varias ? 'publicaron licitaciones' : 'publicó una licitación'} de tu rubro. Revísala en Explorar licitaciones y postula antes de que cierre.</p>
+          <small>Con el plan Premium también te avisamos por correo.</small>
+        </>}
+      </div>
+    </Modal>
+  )
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -235,6 +275,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
         <main className="content">{children}</main>
+        {u.rol === 'PYME' && <AvisoRubro usuarioId={u.id} pendientes={notif.pendientes} />}
       </div>
     </div>
   )

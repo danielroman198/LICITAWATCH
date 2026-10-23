@@ -4,7 +4,7 @@ Marketplace B2B privado de licitaciones (proyecto de título Duoc UC 2026). Role
 Idioma del producto y de los textos de la interfaz: **español de Chile**.
 
 ## Estructura
-- Backend: Java 21 + Spring Boot 3.3.4, Maven multi-módulo con el `pom.xml` padre en la raíz. **Una carpeta por microservicio** (`usuarios/`, `licitaciones/`, `ventas/`, `notificaciones/`, `chat/`, `asistente/`) y dentro **sus capas, desplegadas por separado y cada una con su puerto** (`<dominio>/ms-<dominio>-bff|bs|bd`):
+- Backend: Java 21 + Spring Boot 3.3.4, Maven multi-módulo con el `pom.xml` padre en la raíz. Todo el backend está en **`microservicios/`**: una carpeta por microservicio (`usuarios/`, `licitaciones/`, `ventas/`, `notificaciones/`, `chat/`, `asistente/`) y dentro **sus capas, desplegadas por separado y cada una con su puerto** (`microservicios/<dominio>/ms-<dominio>-bff|bs|bd`):
 
   | Dominio | BFF | BS | BD (PostgreSQL) |
   |---|---|---|---|
@@ -17,7 +17,7 @@ Idioma del producto y de los textos de la interfaz: **español de Chile**.
 
   Ventas tiene además **`ms-ventas-ambassador` (8383)**: único componente que habla con la pasarela de pago (Transbank); la BS de Ventas lo llama con `PasarelaCliente`.
 
-  Más `licitawatch-common/` (librería común: JWT, filtro, errores, `InternalClient`) y `api-gateway/` (8080 por defecto; en esta máquina se usa **8090** porque 8080 está ocupado). El gateway enruta `/api/**` a los BFF.
+  Más `microservicios/licitawatch-common/` (librería común: JWT, filtro, errores, `InternalClient`) y `microservicios/api-gateway/` (8080 por defecto; en esta máquina se usa **8090** porque 8080 está ocupado). El gateway enruta `/api/**` a los BFF.
 - `frontend/` React 18 + TypeScript + Vite. `src/api/types.ts` (contrato), `src/api/mock/` (modo simulado), `src/api/http/httpApi.ts` (backend real). `.env`: `VITE_USE_MOCK` y `VITE_API_URL`.
 - `db/*.sql` scripts PostgreSQL (uno por base), `docs/` ER en PDF, `scripts/` arranque y detención del backend.
 

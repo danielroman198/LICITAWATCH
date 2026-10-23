@@ -16,30 +16,31 @@
     <java.version>21</java.version>
     <jjwt.version>0.12.6</jjwt.version>
   </properties>
-  <!-- Una carpeta por microservicio (usuarios/, licitaciones/, ventas/, notificaciones/, chat/, asistente/).
+  <!-- Todo el backend vive en microservicios/: una carpeta por microservicio (usuarios/, licitaciones/, ventas/,
+       notificaciones/, chat/, asistente/), más licitawatch-common/ y api-gateway/.
        Cada microservicio se divide en 3 capas desplegadas por separado, cada una con su puerto:
        BFF 808x (la llama el API Gateway) → BS 818x (negocio) → BD 828x (única con PostgreSQL).
        Ventas tiene además su Ambassador (8383), el único que habla con la pasarela de pago externa. -->
   <modules>
-    <module>licitawatch-common</module>
-    <module>usuarios/ms-usuarios-bd</module>
-    <module>usuarios/ms-usuarios-bs</module>
-    <module>usuarios/ms-usuarios-bff</module>
-    <module>licitaciones/ms-licitaciones-bd</module>
-    <module>licitaciones/ms-licitaciones-bs</module>
-    <module>licitaciones/ms-licitaciones-bff</module>
-    <module>ventas/ms-ventas-bd</module>
-    <module>ventas/ms-ventas-bs</module>
-    <module>ventas/ms-ventas-bff</module>
-    <module>ventas/ms-ventas-ambassador</module>
-    <module>notificaciones/ms-notificaciones-bd</module>
-    <module>notificaciones/ms-notificaciones-bs</module>
-    <module>notificaciones/ms-notificaciones-bff</module>
-    <module>chat/ms-chat-bd</module>
-    <module>chat/ms-chat-bs</module>
-    <module>chat/ms-chat-bff</module>
-    <module>asistente/ms-asistente-bs</module>
-    <module>asistente/ms-asistente-bff</module>
-    <module>api-gateway</module>
+    <module>microservicios/licitawatch-common</module>
+    <module>microservicios/usuarios/ms-usuarios-bd</module>
+    <module>microservicios/usuarios/ms-usuarios-bs</module>
+    <module>microservicios/usuarios/ms-usuarios-bff</module>
+    <module>microservicios/licitaciones/ms-licitaciones-bd</module>
+    <module>microservicios/licitaciones/ms-licitaciones-bs</module>
+    <module>microservicios/licitaciones/ms-licitaciones-bff</module>
+    <module>microservicios/ventas/ms-ventas-bd</module>
+    <module>microservicios/ventas/ms-ventas-bs</module>
+    <module>microservicios/ventas/ms-ventas-bff</module>
+    <module>microservicios/ventas/ms-ventas-ambassador</module>
+    <module>microservicios/notificaciones/ms-notificaciones-bd</module>
+    <module>microservicios/notificaciones/ms-notificaciones-bs</module>
+    <module>microservicios/notificaciones/ms-notificaciones-bff</module>
+    <module>microservicios/chat/ms-chat-bd</module>
+    <module>microservicios/chat/ms-chat-bs</module>
+    <module>microservicios/chat/ms-chat-bff</module>
+    <module>microservicios/asistente/ms-asistente-bs</module>
+    <module>microservicios/asistente/ms-asistente-bff</module>
+    <module>microservicios/api-gateway</module>
   </modules>
 </project>

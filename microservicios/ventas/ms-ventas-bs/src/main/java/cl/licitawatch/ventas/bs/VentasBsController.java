@@ -11,14 +11,16 @@ import java.util.Map;
 /** Capa BS de Ventas. /bs/** lo llama el BFF (con la sesión en cabeceras); /internal/** lo llaman las capas BS de otros dominios. */
 @RestController
 public class VentasBsController {
-    public record Pago(long planId, String metodo, boolean simularRechazo) {}
+    public record Pago(long planId) {}
     private final VentasService ventas;
     public VentasBsController(VentasService ventas) { this.ventas = ventas; }
 
     @GetMapping("/bs/ventas/planes") public List<PlanDto> planes() { return ventas.planes(); }
     @GetMapping("/bs/ventas/suscripcion") public SuscripcionDto suscripcion(HttpServletRequest r) { return ventas.miSuscripcion(Auth.sesion(r).usuarioId()); }
     @GetMapping("/bs/ventas/pagos/mios") public List<VentaDto> pagos(HttpServletRequest r) { return ventas.misPagos(Auth.sesion(r).usuarioId()); }
-    @PostMapping("/bs/ventas/pagos") public ResultadoPago pagar(HttpServletRequest r, @RequestBody Pago b) { return ventas.pagar(Auth.sesion(r).usuarioId(), b.planId(), b.metodo(), b.simularRechazo()); }
+    @PostMapping("/bs/ventas/webpay") public InicioWebpay iniciarWebpay(HttpServletRequest r, @RequestBody Pago b) { return ventas.iniciarWebpay(Auth.sesion(r).usuarioId(), b.planId()); }
+    /** Sin sesión: lo llama el BFF cuando Transbank devuelve al usuario; el usuario sale de la propia transacción. */
+    @PostMapping("/bs/ventas/webpay/{token}/confirmar") public ResultadoWebpay confirmarWebpay(@PathVariable String token) { return ventas.confirmarWebpay(token); }
     @PostMapping("/bs/ventas/suscripcion/cancelar") public SuscripcionDto cancelar(HttpServletRequest r) { return ventas.cancelar(Auth.sesion(r).usuarioId()); }
     @GetMapping("/bs/ventas/todas") public List<VentaDto> todas() { return ventas.todas(); }
 

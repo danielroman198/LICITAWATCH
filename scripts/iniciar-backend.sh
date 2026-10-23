@@ -6,6 +6,8 @@
 #   BFF 808x  (lo llama el API Gateway; valida JWT y rol)
 #   API Gateway 8090 en esta máquina (8080 por defecto)
 GATEWAY_PORT=${GATEWAY_PORT:-8090}
+# Webpay Plus devuelve al usuario al BFF de Ventas pasando por el gateway (ver ms-ventas-ambassador/application.yml).
+export TBK_RETURN_URL=${TBK_RETURN_URL:-http://localhost:$GATEWAY_PORT/api/ventas/webpay/retorno}
 # Memoria por proceso: son 19 JVM, así que cada una se limita (súbelo si tu equipo tiene RAM de sobra).
 JAVA_OPTS=${JAVA_OPTS:-"-Xms48m -Xmx256m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1"}
 # Configuración local del correo (SMTP). Ver correo.env.example; correo.env no se sube a GitHub.

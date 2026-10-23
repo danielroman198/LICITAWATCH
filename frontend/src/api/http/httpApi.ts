@@ -109,7 +109,7 @@ export const httpApi: Api = {
 
   planes: () => get('/api/ventas/planes'),
   miSuscripcion: () => get('/api/ventas/suscripcion'),
-  pagar: (planId, metodo, simularRechazo) => post('/api/ventas/pagos', { planId, metodo, simularRechazo: !!simularRechazo }),
+  iniciarPagoWebpay: (planId) => post('/api/ventas/webpay', { planId }),
   cancelarSuscripcion: () => post('/api/ventas/suscripcion/cancelar'),
   misPagos: () => get('/api/ventas/pagos/mios'),
 

@@ -4,9 +4,11 @@ spring:
 lw:
   jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
   internal-key: ${INTERNAL_KEY:clave-interna-dev}
-  pasarela:
-    modo: ${PASARELA_MODO:simulado}   # simulado | transbank (Webpay Plus, ambiente de integración)
-    tbk-url: ${TBK_URL:https://webpay3gint.transbank.cl}
-    tbk-commerce-code: ${TBK_COMMERCE_CODE:597055555532}
-    tbk-api-key: ${TBK_API_KEY:579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C}
-    return-url: ${TBK_RETURN_URL:http://localhost:5173/app/suscripcion}
+  # Webpay Plus (Transbank). Por defecto, ambiente de INTEGRACIÓN con las credenciales públicas de prueba de Transbank.
+  # Producción: TBK_URL=https://webpay3g.transbank.cl y el código de comercio / API key que entrega Transbank.
+  webpay:
+    url: ${TBK_URL:https://webpay3gint.transbank.cl}
+    codigo-comercio: ${TBK_COMMERCE_CODE:597055555532}
+    api-key: ${TBK_API_KEY:579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C}
+    # Adonde Transbank devuelve al usuario tras pagar: el BFF de Ventas a través del API Gateway (iniciar-backend.sh la arma con GATEWAY_PORT).
+    retorno: ${TBK_RETURN_URL:http://localhost:8080/api/ventas/webpay/retorno}

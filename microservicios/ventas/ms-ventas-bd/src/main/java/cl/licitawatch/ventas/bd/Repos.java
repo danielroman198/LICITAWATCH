@@ -23,5 +23,5 @@ public final class Repos {
         List<Venta> findBySuscripcionId(Long suscripcionId);
         List<Venta> findAllByOrderByIdDesc();
     }
-    public interface PagoRepo extends JpaRepository<Pago, Long> { List<Pago> findByVentaIdIn(Collection<Long> ventaIds); }
+    public interface PagoRepo extends JpaRepository<Pago, Long> { List<Pago> findByVentaIdIn(Collection<Long> ventaIds); Optional<Pago> findFirstByIdTransaccion(String idTransaccion); }
 }

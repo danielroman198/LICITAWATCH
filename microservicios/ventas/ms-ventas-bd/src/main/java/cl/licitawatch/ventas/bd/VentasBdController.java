@@ -90,4 +90,11 @@ public class VentasBdController {
         Map<Long, Pago> ps = pagos.findByVentaIdIn(vs.stream().map(Venta::getId).toList()).stream().collect(Collectors.toMap(Pago::getVentaId, Function.identity()));
         return vs.stream().map(v -> fila(v, ps.get(v.getId()))).toList();
     }
+
+    /** Compra ya registrada con ese id de transacción (orden de compra de Webpay); lista vacía si no hay. Evita registrar dos veces la misma confirmación. */
+    @GetMapping("/compras/transaccion/{idTransaccion}")
+    public List<CompraFila> compraPorTransaccion(@PathVariable String idTransaccion) {
+        return pagos.findFirstByIdTransaccion(idTransaccion).flatMap(p -> ventas.findById(p.getVentaId())
+                .flatMap(v -> suscripciones.findById(v.getSuscripcionId()).map(s -> new CompraFila(fila(s), fila(v, p))))).stream().toList();
+    }
 }

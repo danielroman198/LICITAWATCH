@@ -4,6 +4,7 @@ spring:
 lw:
   jwt.secret: ${JWT_SECRET:cambia-este-secreto-de-al-menos-32-caracteres-licitawatch}
   internal-key: ${INTERNAL_KEY:clave-interna-dev}
-  publicas: ${LW_PUBLICAS:/api/ventas/planes}
+  publicas: ${LW_PUBLICAS:/api/ventas/planes,/api/ventas/webpay/retorno}   # el retorno lo llama el navegador al volver de Transbank (sin JWT)
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}   # adonde se devuelve al usuario después de pagar
   urls:
     bs: ${URL_VENTAS_BS:http://localhost:8183}     # capa BS de este microservicio

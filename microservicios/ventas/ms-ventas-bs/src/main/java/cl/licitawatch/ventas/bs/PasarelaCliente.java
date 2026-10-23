@@ -6,14 +6,18 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-/** La capa BS no habla con Transbank: le pide el cobro a ms-ventas-ambassador por REST. */
+/** La capa BS no habla con Transbank: le pide crear y confirmar las transacciones Webpay a ms-ventas-ambassador por REST. */
 @Component
 public class PasarelaCliente {
-    public record Resultado(boolean aprobado, String idTransaccion, String detalle) {}
+    public record Transaccion(String token, String url) {}
+    public record Resultado(boolean aprobado, String estado, int codigoRespuesta, String ordenCompra, String sesionId, long monto,
+                            String codigoAutorizacion, String tipoPago, int cuotas, String ultimos4, String fechaTransaccion) {}
     private final InternalClient interno; private final String url;
-    public PasarelaCliente(InternalClient interno, @Value("${lw.urls.ambassador}") String url) { this.interno = interno; this.url = url; }
+    public PasarelaCliente(InternalClient interno, @Value("${lw.urls.ambassador}") String url) { this.interno = interno; this.url = url + "/ambassador/webpay/transacciones"; }
 
-    public Resultado cobrar(int monto, String metodo, String ordenCompra, boolean simularRechazo) {
-        return interno.post(url + "/ambassador/pagos", Map.of("monto", monto, "metodo", metodo, "ordenCompra", ordenCompra, "simularRechazo", simularRechazo), Resultado.class);
+    public Transaccion crear(long monto, String ordenCompra, String sesionId) {
+        return interno.post(url, Map.of("monto", monto, "ordenCompra", ordenCompra, "sesionId", sesionId), Transaccion.class);
     }
+    public Resultado confirmar(String token) { return interno.put(url + "/" + InternalClient.q(token), null, Resultado.class); }
+    public Resultado estado(String token) { return interno.get(url + "/" + InternalClient.q(token), Resultado.class); }
 }

@@ -220,9 +220,12 @@ export interface Venta {
   idTransaccion: string
 }
 
-export interface ResultadoPago {
-  venta: Venta
-  suscripcion?: Suscripcion
+/** Webpay Plus: el navegador va a `url` enviando `token` como token_ws (POST). Sin token (modo simulado), basta con ir a `url`. */
+export interface TransaccionWebpay {
+  token: string
+  url: string
+  ordenCompra: string
+  monto: number
 }
 
 export interface MensajeAsistente {
@@ -359,7 +362,7 @@ export interface Api {
   // Suscripciones y pagos (MS-Ventas + Ambassador Transbank)
   planes(): Promise<Plan[]>
   miSuscripcion(): Promise<Suscripcion>
-  pagar(planId: number, metodo: MetodoPago, simularRechazo?: boolean): Promise<ResultadoPago>
+  iniciarPagoWebpay(planId: number): Promise<TransaccionWebpay>
   cancelarSuscripcion(): Promise<Suscripcion>
   misPagos(): Promise<Venta[]>
 

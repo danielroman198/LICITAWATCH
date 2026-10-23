@@ -568,24 +568,25 @@ export const mockApi: Api & { resetDemo(): void; correos(): Promise<DB['correos'
     saveDb()
     return { id: sub.id, usuarioId: u.id, plan: clon(plan), estado: sub.estado, fechaInicio: sub.fechaInicio, fechaFin: sub.fechaFin, postulacionesUsadas: usadasEsteMes(db, u.id) }
   },
-  async pagar(planId, metodo: MetodoPago, simularRechazo = false) {
-    await delay(1400) // simula la redirección a Webpay (Ambassador → Transbank sandbox)
+  // Modo simulado: no hay Transbank, así que se aprueba al tiro y se "vuelve" a la página de suscripción como lo haría Webpay.
+  async iniciarPagoWebpay(planId) {
+    await delay(900)
     const db = loadDb()
     const u = exigir(db, 'PYME')
     const plan = planPorId(planId)
     if (plan.precioMensual <= 0) throw new ApiError('El plan Estándar es gratuito.', 400)
+    const orden = `LW${u.id}-${Date.now()}`, autorizacion = String(Math.floor(1000 + Math.random() * 8999))
     const venta: Venta = {
       id: nextId(db, 'venta'), usuarioId: u.id, usuarioNombre: nombreDe(db, u.id), plan: plan.nombre, monto: plan.precioMensual,
-      fecha: ahora(), metodo, estado: simularRechazo ? 'Rechazado' : 'Aprobado', idTransaccion: 'TBK-' + Math.floor(100000 + Math.random() * 899999),
+      fecha: ahora(), metodo: 'Crédito', estado: 'Aprobado', idTransaccion: orden,
     }
     db.ventas.unshift(venta)
-    if (simularRechazo) { saveDb(); return { venta: clon(venta) } }
     db.suscripciones.filter((s) => s.usuarioId === u.id && s.estado === 'Activa').forEach((s) => { s.estado = 'Cancelada' })
-    const sub = { id: nextId(db, 'suscripcion'), usuarioId: u.id, planId: plan.id, estado: 'Activa' as const, fechaInicio: ahora(), fechaFin: new Date(Date.now() + 30 * DAY).toISOString() }
-    db.suscripciones.push(sub)
-    notificar(db, u.id, 'Pago confirmado', 'Pago confirmado', `Tu suscripción ${plan.nombre} está activa. Comprobante ${venta.idTransaccion}.`)
+    db.suscripciones.push({ id: nextId(db, 'suscripcion'), usuarioId: u.id, planId: plan.id, estado: 'Activa', fechaInicio: ahora(), fechaFin: new Date(Date.now() + 30 * DAY).toISOString() })
+    notificar(db, u.id, 'Pago confirmado', 'Pago confirmado', `Tu suscripción ${plan.nombre} está activa. Orden de compra ${orden}.`)
     saveDb()
-    return { venta: clon(venta), suscripcion: { id: sub.id, usuarioId: u.id, plan: clon(plan), estado: 'Activa', fechaInicio: sub.fechaInicio, fechaFin: sub.fechaFin, postulacionesUsadas: usadasEsteMes(db, u.id) } }
+    const q = new URLSearchParams({ pago: 'aprobado', ordenCompra: orden, monto: String(plan.precioMensual), metodo: 'Crédito', plan: plan.nombre, codigoAutorizacion: autorizacion, ultimos4: '6623', cuotas: '0' })
+    return { token: '', url: `/app/suscripcion?${q}`, ordenCompra: orden, monto: plan.precioMensual }
   },
   async cancelarSuscripcion() {
     await delay()

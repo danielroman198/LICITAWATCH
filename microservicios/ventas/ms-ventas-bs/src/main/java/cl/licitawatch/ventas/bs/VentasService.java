@@ -4,19 +4,22 @@ import cl.licitawatch.common.ApiException;
 import cl.licitawatch.common.InternalClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-/** Reglas de Ventas (planes, vigencia de 30 días, cobro). Los datos los entrega la capa BD (ms-ventas-bd). */
+/** Reglas de Ventas (planes, vigencia de 30 días, cobro con Webpay Plus). Los datos los entrega la capa BD (ms-ventas-bd). */
 @Service
 public class VentasService {
     public record PlanDto(Integer id, String nombre, int precioMensual, int postulacionesMes, String descripcion, List<String> beneficios) {}
     public record SuscripcionDto(Long id, Long usuarioId, PlanDto plan, String estado, Instant fechaInicio, Instant fechaFin, int postulacionesUsadas) {}
     public record VentaDto(Long id, Long usuarioId, String usuarioNombre, String plan, long monto, Instant fecha, String metodo, String estado, String idTransaccion) {}
-    public record ResultadoPago(VentaDto venta, SuscripcionDto suscripcion) {}
+    public record InicioWebpay(String token, String url, String ordenCompra, long monto) {}
+    public record ResultadoWebpay(String estado, String ordenCompra, long monto, String metodo, String plan, String codigoAutorizacion, String ultimos4, int cuotas) {}
     // Filas tal como las entrega la capa BD.
     record PlanFila(Integer id, String nombre) {}
     record SuscFila(Long id, Long usuarioId, Integer planId, String plan, String estado) {}
@@ -70,21 +73,59 @@ public class VentasService {
         try { return interno.get(urlLicitaciones + "/internal/postulaciones/usadas?usuarioId=" + usuarioId, JsonNode.class).path("usadas").asInt(); } catch (Exception e) { return 0; }
     }
 
-    /** Cobra a través de ms-ventas-ambassador (pasarela Transbank) y registra plan → suscripción → venta → pago en la capa BD (una transacción allá). */
-    public ResultadoPago pagar(long usuarioId, long planId, String metodo, boolean simularRechazo) {
+    /**
+     * Paso 1 de Webpay Plus: valida el plan y pide a ms-ventas-ambassador crear la transacción en Transbank. Todavía no se registra nada:
+     * la compra se guarda recién cuando Transbank confirma (pago abandonado = sin rastro y sin cobro).
+     * El usuario y el plan viajan en el session_id de Transbank, así la confirmación los obtiene de la propia pasarela.
+     */
+    public InicioWebpay iniciarWebpay(long usuarioId, long planId) {
         PlanFila plan = interno.get(urlBd + "/bd/planes/" + planId, PlanFila.class);
         int precio = PlanInfo.de(plan.nombre()).precioMensual();
         if (precio == 0) throw ApiException.invalido("El plan Estándar es gratuito, no requiere pago");
-        if (!List.of(interno.get(urlBd + "/bd/metodos-pago", String[].class)).contains(metodo)) throw ApiException.invalido("Método de pago inválido");
+        String orden = "LW" + usuarioId + "-" + System.currentTimeMillis();   // buy_order: máx. 26 caracteres, único por intento
+        PasarelaCliente.Transaccion t = pasarela.crear(precio, orden, usuarioId + "-" + plan.id());
+        return new InicioWebpay(t.token(), t.url(), orden, precio);
+    }
 
-        PasarelaCliente.Resultado r = pasarela.cobrar(precio, metodo, "LW-" + usuarioId + "-" + System.currentTimeMillis(), simularRechazo);
-        CompraFila c = interno.post(urlBd + "/bd/compras", Map.of("usuarioId", usuarioId, "planId", plan.id(), "metodo", metodo, "idTransaccion", r.idTransaccion(),
-                "aprobado", r.aprobado(), "monto", precio), CompraFila.class);
+    /**
+     * Paso 3 de Webpay Plus, cuando Transbank devuelve al usuario con token_ws: confirma (commit) la transacción y registra
+     * suscripción → venta → pago en la capa BD (una transacción allá). Si el token ya se había confirmado (p. ej. el usuario recargó la página),
+     * devuelve lo que quedó registrado en vez de cobrar o registrar de nuevo.
+     */
+    public ResultadoWebpay confirmarWebpay(String token) {
+        PasarelaCliente.Resultado r;
+        try { r = pasarela.confirmar(token); }
+        catch (ApiException e) {
+            if (e.getStatus().is5xxServerError()) throw e;   // Webpay no respondió: el mensaje ya lo explica
+            ApiException sinConfirmar = new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Webpay no pudo confirmar la transacción (es inválida o expiró). No se realizó ningún cobro; inicia el pago nuevamente.");
+            PasarelaCliente.Resultado previo;
+            try { previo = pasarela.estado(token); } catch (Exception x) { throw sinConfirmar; }
+            return compraRegistrada(previo.ordenCompra()).map(c -> resultado(c, previo)).orElseThrow(() -> sinConfirmar);
+        }
+        Optional<CompraFila> ya = compraRegistrada(r.ordenCompra());
+        if (ya.isPresent()) return resultado(ya.get(), r);
 
-        VentaDto vd = ventaDto(c.venta(), c.suscripcion(), nombreDe(usuarioId));
-        if (!r.aprobado()) return new ResultadoPago(vd, null);
-        interno.notificar(urlNotif, usuarioId, "Pago confirmado", "Pago confirmado", "Tu suscripción " + plan.nombre() + " está activa. Transacción " + r.idTransaccion() + ".", true);
-        return new ResultadoPago(vd, miSuscripcion(usuarioId));
+        long usuarioId, planId;
+        try { String[] s = r.sesionId().split("-"); usuarioId = Long.parseLong(s[0]); planId = Long.parseLong(s[1]); }
+        catch (Exception e) { throw ApiException.invalido("La transacción no pertenece a LicitaWatch"); }
+        PlanFila plan = interno.get(urlBd + "/bd/planes/" + planId, PlanFila.class);
+        String metodo = "VD".equals(r.tipoPago()) || "VP".equals(r.tipoPago()) ? "Débito" : "Crédito";   // VD débito, VP prepago; el resto son crédito
+        CompraFila c = interno.post(urlBd + "/bd/compras", Map.of("usuarioId", usuarioId, "planId", plan.id(), "metodo", metodo, "idTransaccion", r.ordenCompra(),
+                "aprobado", r.aprobado(), "monto", r.monto()), CompraFila.class);
+        if (r.aprobado()) interno.notificar(urlNotif, usuarioId, "Pago confirmado", "Pago confirmado",
+                "Tu suscripción " + plan.nombre() + " está activa. Orden de compra " + r.ordenCompra() + ", código de autorización " + r.codigoAutorizacion() + ".", true);
+        return resultado(c, r);
+    }
+
+    private Optional<CompraFila> compraRegistrada(String orden) {
+        if (orden == null || orden.isBlank()) return Optional.empty();
+        return Stream.of(interno.get(urlBd + "/bd/compras/transaccion/" + InternalClient.q(orden), CompraFila[].class)).findFirst();
+    }
+    private static ResultadoWebpay resultado(CompraFila c, PasarelaCliente.Resultado r) {
+        boolean ok = "Aprobado".equals(c.venta().estadoPago());
+        return new ResultadoWebpay(ok ? "aprobado" : "rechazado", c.venta().idTransaccion(), c.venta().monto(), c.venta().metodo(), c.suscripcion().plan(),
+                ok ? r.codigoAutorizacion() : "", r.ultimos4(), r.cuotas());
     }
 
     public SuscripcionDto cancelar(long usuarioId) {

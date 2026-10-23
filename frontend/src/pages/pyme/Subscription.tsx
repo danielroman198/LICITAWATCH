@@ -1,9 +1,35 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../../api'
-import type { MetodoPago, Plan } from '../../api/types'
-import { Badge, Button, Card, CardHeader, Cargando, Field, Input, Modal, PageHeader, Progress, Select, tonoEstado, useAsync, useToast } from '../../components/ui/ui'
+import type { Plan } from '../../api/types'
+import { Badge, Button, Card, CardHeader, Cargando, Modal, PageHeader, Progress, tonoEstado, useAsync, useToast } from '../../components/ui/ui'
 import { Icon } from '../../lib/icons'
 import { clp, fechaCorta } from '../../lib/format'
+
+// Tarjetas del ambiente de integración de Transbank (transbankdevelopers.cl → Tarjetas de prueba). Autenticación del banco: RUT 11.111.111-1, clave 123.
+const TARJETAS_PRUEBA = [
+  { tipo: 'VISA (crédito)', numero: '4051 8856 0044 6623', cvv: '123', ok: true },
+  { tipo: 'AMEX (crédito)', numero: '3700 0000 0002 032', cvv: '1234', ok: true },
+  { tipo: 'MASTERCARD (crédito)', numero: '5186 0595 5959 0568', cvv: '123', ok: false },
+  { tipo: 'Redcompra (débito)', numero: '4051 8842 3993 7763', cvv: '—', ok: true },
+  { tipo: 'Redcompra (débito)', numero: '4511 3466 6003 7060', cvv: '—', ok: true },
+  { tipo: 'Redcompra (débito)', numero: '5186 0085 4123 3829', cvv: '—', ok: false },
+]
+
+/** Resultado con el que Webpay devuelve al usuario: el BFF lo deja en la URL (/app/suscripcion?pago=…). */
+type RetornoWebpay = { pago: string; ordenCompra?: string; monto?: string; metodo?: string; plan?: string; codigoAutorizacion?: string; ultimos4?: string; cuotas?: string; mensaje?: string; orden?: string }
+function leerRetorno(): RetornoWebpay | null {
+  const q = new URLSearchParams(window.location.search)
+  return q.get('pago') ? (Object.fromEntries(q) as RetornoWebpay) : null
+}
+
+/** Envía el navegador al formulario de pago de Transbank (POST con token_ws, como indica Webpay Plus). */
+function irAWebpay(url: string, token: string) {
+  if (!token) { window.location.assign(url); return }   // modo simulado
+  const f = document.createElement('form')
+  f.method = 'POST'; f.action = url
+  const i = document.createElement('input'); i.type = 'hidden'; i.name = 'token_ws'; i.value = token
+  f.appendChild(i); document.body.appendChild(f); f.submit()
+}
 
 export function Subscription() {
   const toast = useToast()
@@ -11,26 +37,25 @@ export function Subscription() {
   const sub = useAsync(() => api.miSuscripcion(), [])
   const pagos = useAsync(() => api.misPagos(), [])
   const [plan, setPlan] = useState<Plan | null>(null)
-  const [metodo, setMetodo] = useState<MetodoPago>('Crédito')
-  const [tarjeta, setTarjeta] = useState('4051 8856 0044 6623')
-  const [rechazo, setRechazo] = useState(false)
-  const [paso, setPaso] = useState<'form' | 'procesando' | 'ok' | 'error'>('form')
+  const [redirigiendo, setRedirigiendo] = useState(false)
+  const [retorno, setRetorno] = useState<RetornoWebpay | null>(leerRetorno)
   const [cancelar, setCancelar] = useState(false)
+
+  // Al volver de Webpay se muestra el resultado una sola vez: se limpia la URL para que recargar no lo repita.
+  useEffect(() => { if (retorno) window.history.replaceState(null, '', '/app/suscripcion') }, []) // eslint-disable-line
 
   if (planes.loading || sub.loading) return <Cargando />
   const actual = sub.data!
   const premium = actual.plan.nombre === 'Premium' && actual.estado === 'Activa'
 
-  const abrir = (p: Plan) => { setPlan(p); setPaso('form'); setRechazo(false) }
+  const abrir = (p: Plan) => { setPlan(p); setRedirigiendo(false) }
   const pagar = async () => {
     if (!plan) return
-    setPaso('procesando')
+    setRedirigiendo(true)
     try {
-      const r = await api.pagar(plan.id, metodo, rechazo)
-      await new Promise((x) => setTimeout(x, 1200))
-      setPaso(r.venta.estado === 'Aprobado' ? 'ok' : 'error')
-      sub.recargar(); pagos.recargar()
-    } catch (e) { setPaso('error'); toast.error((e as Error).message) }
+      const t = await api.iniciarPagoWebpay(plan.id)
+      irAWebpay(t.url, t.token)   // el navegador sale de LicitaWatch; Transbank lo devuelve con el resultado
+    } catch (e) { setRedirigiendo(false); toast.error((e as Error).message) }
   }
   const confirmarCancelar = async () => {
     try { await api.cancelarSuscripcion(); toast.ok('Suscripción cancelada. Vuelves al plan Estándar.'); sub.recargar() } catch (e) { toast.error((e as Error).message) }
@@ -85,24 +110,48 @@ export function Subscription() {
         )}
       </Card>
 
-      <Modal abierto={!!plan} onClose={() => paso !== 'procesando' && setPlan(null)} titulo="Pagar suscripción Premium" ancho={480}
-        pie={paso === 'form' ? <><Button variant="ghost" onClick={() => setPlan(null)}>Cancelar</Button><Button icon="lock" onClick={pagar}>Pagar {plan && clp(plan.precioMensual)}</Button></>
-          : paso === 'ok' ? <Button onClick={() => setPlan(null)}>Listo</Button> : paso === 'error' ? <Button onClick={() => setPaso('form')}>Reintentar</Button> : undefined}>
-        {paso === 'form' && plan && (
+      <Modal abierto={!!plan} onClose={() => !redirigiendo && setPlan(null)} titulo="Pagar suscripción Premium" ancho={580}
+        pie={<><Button variant="ghost" onClick={() => setPlan(null)} disabled={redirigiendo}>Cancelar</Button><Button icon="lock" loading={redirigiendo} onClick={pagar}>Ir a pagar {plan && clp(plan.precioMensual)}</Button></>}>
+        {plan && (
           <div className="stack-sm">
-            <div className="webpay"><b>Webpay</b><span>Simulación Transbank · ambiente de integración</span></div>
-            <Field label="Método"><Select value={metodo} onChange={(e) => setMetodo(e.target.value as MetodoPago)}><option>Crédito</option><option>Débito</option></Select></Field>
-            <Field label="Número de tarjeta" hint="Tarjeta de prueba de Transbank"><Input icon="card" value={tarjeta} onChange={(e) => setTarjeta(e.target.value)} /></Field>
-            <label className="check"><input type="checkbox" checked={rechazo} onChange={(e) => setRechazo(e.target.checked)} /> Simular pago rechazado</label>
+            <div className="webpay"><b>Webpay Plus</b><span>Transbank · ambiente de integración (pagos de prueba, sin cobro real)</span></div>
+            <div className="pay-resumen"><span>Plan {plan.nombre} · 30 días</span><b>{clp(plan.precioMensual)}</b></div>
+            <p className="muted-p">Te llevaremos al formulario seguro de Webpay para ingresar tu tarjeta. LicitaWatch nunca ve ni guarda los datos de tu tarjeta. Al terminar volverás aquí con el comprobante.</p>
+            <details className="tarjetas-prueba">
+              <summary><Icon name="card" size={16} /> Tarjetas de prueba de Transbank</summary>
+              <table className="table"><thead><tr><th>Tarjeta</th><th>Número</th><th>CVV</th><th>Resultado</th></tr></thead>
+                <tbody>{TARJETAS_PRUEBA.map((t) => <tr key={t.numero}><td>{t.tipo}</td><td><code>{t.numero}</code></td><td>{t.cvv}</td><td><Badge tono={t.ok ? 'green' : 'red'} dot>{t.ok ? 'Aprobada' : 'Rechazada'}</Badge></td></tr>)}</tbody>
+              </table>
+              <p className="muted-p">Fecha de expiración: cualquiera. Si el banco pide autenticarte: RUT <b>11.111.111-1</b>, clave <b>123</b>.</p>
+            </details>
           </div>
         )}
-        {paso === 'procesando' && <Cargando texto="Conectando con Webpay…" />}
-        {paso === 'ok' && <div className="pay-result ok"><Icon name="checkcircle" size={56} /><h3>¡Pago aprobado!</h3><p>Ya eres Premium: más postulaciones, prioridad y LicitAsist.</p></div>}
-        {paso === 'error' && <div className="pay-result bad"><Icon name="xcircle" size={56} /><h3>Pago rechazado</h3><p>No se realizó ningún cobro. Revisa tu tarjeta e inténtalo de nuevo.</p></div>}
+      </Modal>
+      <Modal abierto={!!retorno} onClose={() => setRetorno(null)} titulo="Resultado del pago" ancho={460} pie={<Button onClick={() => setRetorno(null)}>{retorno?.pago === 'aprobado' ? 'Listo' : 'Entendido'}</Button>}>
+        {retorno && <ResultadoWebpay r={retorno} />}
       </Modal>
       <Modal abierto={cancelar} onClose={() => setCancelar(false)} titulo="Cancelar suscripción" pie={<><Button variant="ghost" onClick={() => setCancelar(false)}>Mantener Premium</Button><Button variant="danger" onClick={confirmarCancelar}>Sí, cancelar</Button></>}>
         <p>Volverás al plan Estándar (3 postulaciones al mes) y perderás LicitAsist y la prioridad en postulaciones.</p>
       </Modal>
     </div>
   )
+}
+
+function ResultadoWebpay({ r }: { r: RetornoWebpay }) {
+  const fila = (k: string, v?: string) => v ? <div><span>{k}</span><b>{v}</b></div> : null
+  const detalle = (
+    <div className="pay-detalle">
+      {fila('Orden de compra', r.ordenCompra ?? r.orden)}
+      {fila('Plan', r.plan)}
+      {fila('Monto', r.monto ? clp(Number(r.monto)) : undefined)}
+      {fila('Tarjeta', r.ultimos4 ? `${r.metodo ?? ''} terminada en ${r.ultimos4}` : r.metodo)}
+      {fila('Cuotas', r.cuotas && Number(r.cuotas) > 0 ? r.cuotas : undefined)}
+      {fila('Código de autorización', r.codigoAutorizacion)}
+    </div>
+  )
+  if (r.pago === 'aprobado') return <div className="pay-result ok"><Icon name="checkcircle" size={56} /><h3>¡Pago aprobado!</h3><p>Ya eres Premium: más postulaciones, prioridad y LicitAsist.</p>{detalle}</div>
+  if (r.pago === 'rechazado') return <div className="pay-result bad"><Icon name="xcircle" size={56} /><h3>Pago rechazado</h3><p>Transbank rechazó la transacción y no se realizó ningún cobro. Revisa los datos de tu tarjeta o prueba con otra.</p>{detalle}</div>
+  if (r.pago === 'anulado') return <div className="pay-result bad"><Icon name="xcircle" size={56} /><h3>Pago anulado</h3><p>Cancelaste el pago en Webpay. No se realizó ningún cobro.</p>{detalle}</div>
+  if (r.pago === 'expirado') return <div className="pay-result bad"><Icon name="xcircle" size={56} /><h3>Se acabó el tiempo</h3><p>El formulario de Webpay expiró antes de completar el pago. No se realizó ningún cobro.</p>{detalle}</div>
+  return <div className="pay-result bad"><Icon name="xcircle" size={56} /><h3>No pudimos confirmar el pago</h3><p>{r.mensaje || 'Inténtalo nuevamente en unos minutos.'}</p></div>
 }

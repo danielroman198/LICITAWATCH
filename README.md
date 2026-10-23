@@ -66,11 +66,19 @@ Las capas internas (`/bs/**`, `/bd/**`, `/ambassador/**`) y las llamadas entre m
 ### SII (validación de RUT de empresa)
 `SII_MODO=stub` (por defecto): valida dígito verificador y entrega datos de prueba; para empresas públicas conocidas (Falabella 90.749.000-9, Codelco 61.704.000-K, Banco de Chile 97.004.000-5…) devuelve su razón social. `SII_MODO=http` + `SII_URL`/`SII_API_KEY` usa un proveedor real (adaptar el contrato en `SiiHttp`). El registro **nunca bloquea** si el SII no responde: guarda el RUT con `sii_validado=false`.
 
-### Transbank
-`PASARELA_MODO=simulado` (por defecto) reproduce Webpay (aprobado / rechazado). `PASARELA_MODO=transbank` usa el ambiente de integración de Webpay Plus, que requiere un flujo con redirección que el front aún no implementa.
+### Transbank (Webpay Plus real, ambiente de integración)
+El pago del plan Premium usa la API REST v1.2 de Webpay Plus con el flujo real de redirección:
+1. «Pasar a Premium» → `POST /api/ventas/webpay` → la BS valida el plan y `ms-ventas-ambassador` crea la transacción en Transbank (devuelve `token` y `url`).
+2. El navegador va al formulario de Webpay (POST con `token_ws`); el usuario elige tarjeta y paga **en Transbank** (LicitaWatch nunca ve la tarjeta).
+3. Transbank devuelve al usuario a `/api/ventas/webpay/retorno` (BFF, ruta pública vía gateway). Con `token_ws` se **confirma** (commit) y recién ahí se registra suscripción → venta → pago (aprobado o rechazado; método Crédito/Débito según el tipo de pago que informa Transbank). Con `TBK_TOKEN` (anulado) o solo `TBK_ORDEN_COMPRA` (tiempo agotado) no hay cobro ni registro.
+4. El BFF redirige a `/app/suscripcion?pago=…` y el frontend muestra el comprobante (orden de compra, código de autorización, últimos 4 dígitos). Recargar el retorno no registra dos veces (se busca la orden de compra en la BD).
+
+Tarjetas de prueba (cualquier fecha de expiración; autenticación del banco: RUT `11.111.111-1`, clave `123`): VISA `4051 8856 0044 6623` CVV 123 → aprobada · AMEX `3700 0000 0002 032` CVV 1234 → aprobada · MASTERCARD `5186 0595 5959 0568` CVV 123 → rechazada · Redcompra `4051 8842 3993 7763` / `4511 3466 6003 7060` → aprobadas · Redcompra `5186 0085 4123 3829` → rechazada. El modal de pago las muestra.
+
+Variables: `TBK_URL` (por defecto `https://webpay3gint.transbank.cl`), `TBK_COMMERCE_CODE` / `TBK_API_KEY` (por defecto las credenciales públicas de integración), `TBK_RETURN_URL` (el script la arma con `GATEWAY_PORT`) y `FRONTEND_URL` en el BFF de Ventas (por defecto `http://localhost:5173`). Requiere internet; sin conexión, el pago muestra «No pudimos conectar con Webpay». Para producción basta cambiar `TBK_URL` a `https://webpay3g.transbank.cl` y las credenciales que entrega Transbank.
 
 ## 3. Estado y limitaciones (leer antes de entregar)
 - **Frontend**: compilado con esbuild y revisado visualmente en Chromium (público, 3 roles, detalle, adjudicación→chat, pago). **No se ejecutó `tsc`/`npm install`** (el entorno de desarrollo no tenía acceso al registro npm): al correr `npm install && npm run build` pueden aparecer errores de tipos menores.
 - **Backend**: **no se compiló con Maven** (sin acceso a Maven Central). Se verificó sintaxis con `javac` y la lógica de RUT con Java; la integración entre servicios **no se ha probado**. Espera pequeños ajustes en el primer `mvn package`.
-- Pendiente: alertas por correo a Pymes Premium por rubro, subida real de archivos (hoy solo metadatos), flujo de redirección Webpay real, tests automatizados.
+- Pendiente: alertas por correo a Pymes Premium por rubro, subida real de archivos (hoy solo metadatos), tests automatizados.
 - **Base de datos = tu ER** (`docs/Modelo_ER_LicitaWatch.pdf`): 5 bases (Usuarios, Licitaciones, Ventas, Chat, Notificaciones); el Asistente no tiene BD. Tablas y columnas con los nombres del ER, catálogos normalizados y REF (no FK) entre microservicios. Lo que el ER no contiene queda así: el `rut_persona` (RUT de la persona de contacto) se agregó al ER en `licitador` y `pyme`; `giro` y `ultimoLogin` se devuelven vacíos; la recuperación de contraseña usa un token firmado de 1 h (sin tabla); precio/cupo/beneficios de cada plan viven en `PlanInfo.java`; la notificación guarda solo tipo y canal (el texto sale del tipo) y el estado «leída» se guarda en el navegador.

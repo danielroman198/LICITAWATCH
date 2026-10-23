@@ -15,8 +15,8 @@ cd "$RAIZ" || exit 1
 LOGS="$RAIZ/logs"; mkdir -p "$LOGS"
 pkill -f -- '-1.0.0.jar' 2>/dev/null; sleep 2
 
-# Ruta del jar: cada módulo vive en microservicios/<dominio>/ (p. ej. microservicios/ventas/ms-ventas-ambassador); el gateway en microservicios/api-gateway.
-jar() { local d; d=$(echo "$1" | sed -E 's/^ms-([a-z]+)-.*/\1/'); if [ "$1" = "api-gateway" ]; then echo "microservicios/api-gateway/target/api-gateway-1.0.0.jar"; else echo "microservicios/$d/$1/target/$1-1.0.0.jar"; fi; }
+# Ruta del jar: cada módulo vive en microservicios/<dominio>/ (p. ej. microservicios/ventas/ms-ventas-ambassador); el gateway en api-gateway/ (raíz).
+jar() { local d; d=$(echo "$1" | sed -E 's/^ms-([a-z]+)-.*/\1/'); if [ "$1" = "api-gateway" ]; then echo "api-gateway/target/api-gateway-1.0.0.jar"; else echo "microservicios/$d/$1/target/$1-1.0.0.jar"; fi; }
 
 DOMINIOS="usuarios licitaciones ventas notificaciones chat"
 BD=""; BS=""; BFF=""

@@ -17,7 +17,7 @@
     <jjwt.version>0.12.6</jjwt.version>
   </properties>
   <!-- Todo el backend vive en microservicios/: una carpeta por microservicio (usuarios/, licitaciones/, ventas/,
-       notificaciones/, chat/, asistente/), más licitawatch-common/ y api-gateway/.
+       notificaciones/, chat/, asistente/) más licitawatch-common/. El API Gateway (entrada única) va aparte, en api-gateway/.
        Cada microservicio se divide en 3 capas desplegadas por separado, cada una con su puerto:
        BFF 808x (la llama el API Gateway) → BS 818x (negocio) → BD 828x (única con PostgreSQL).
        Ventas tiene además su Ambassador (8383), el único que habla con la pasarela de pago externa. -->
@@ -41,6 +41,6 @@
     <module>microservicios/chat/ms-chat-bff</module>
     <module>microservicios/asistente/ms-asistente-bs</module>
     <module>microservicios/asistente/ms-asistente-bff</module>
-    <module>microservicios/api-gateway</module>
+    <module>api-gateway</module>
   </modules>
 </project>

@@ -5,8 +5,8 @@ Licitadores publican licitaciones (**gratis**); las Pymes postulan y pagan suscr
 ```
 licitawatch/
 ├─ frontend/   React 18 + TypeScript + Vite (tema claro). Modo simulado o API real.
-├─ microservicios/      Todo el backend (Java 21 + Spring Boot 3.3)
-│  ├─ api-gateway/          Puerta única (Spring Cloud Gateway)
+├─ api-gateway/         Entrada única al backend (Spring Cloud Gateway): enruta /api/** a los BFF
+├─ microservicios/      Microservicios de negocio (Java 21 + Spring Boot 3.3)
 │  ├─ usuarios/             ms-usuarios-bff · ms-usuarios-bs · ms-usuarios-bd
 │  ├─ licitaciones/         ms-licitaciones-bff · ms-licitaciones-bs · ms-licitaciones-bd
 │  ├─ ventas/               ms-ventas-bff · ms-ventas-bs · ms-ventas-bd · ms-ventas-ambassador
@@ -15,7 +15,7 @@ licitawatch/
 │  ├─ asistente/            ms-asistente-bff · ms-asistente-bs
 │  └─ licitawatch-common/   Librería común (JWT, errores, cliente entre capas)
 ├─ scripts/              iniciar-backend.sh · detener-backend.sh
-├─ pom.xml               Maven padre: compila todo lo de microservicios/
+├─ pom.xml               Maven padre: compila api-gateway/ y microservicios/
 ├─ db/         Scripts PostgreSQL (una BD por microservicio) + instrucciones
 ├─ docs/       Modelo_ER_LicitaWatch.pdf (tu ER oficial; la BD sigue este modelo)
 ```

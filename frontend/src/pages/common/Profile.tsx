@@ -71,6 +71,7 @@ export function Profile() {
               </div>
               <div className="profile-id">
                 <h2>{p.razonSocial}</h2>
+                {!esAdmin && p.nombreContacto && <p className="profile-titular"><Icon name="user" size={15} />{p.nombreContacto}</p>}
                 <div className="td-badges">
                   <Badge tono={u.rol === 'ADMIN' ? 'violet' : u.rol === 'PYME' ? 'teal' : 'blue'} icon="briefcase">{u.rol === 'ADMIN' ? 'Administrador' : u.rol === 'PYME' ? 'Pyme' : 'Licitador'}</Badge>
                   {!esAdmin && (p.siiValidado ? <Badge tono="green" icon="shieldcheck">Verificada en el SII</Badge> : <Badge tono="amber" icon="alert">RUT sin verificar</Badge>)}

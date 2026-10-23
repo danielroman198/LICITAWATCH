@@ -12,18 +12,18 @@ lw:
     ventas: ${URL_VENTAS_BS:http://localhost:8183}
     notificaciones: ${URL_NOTIFICACIONES_BS:http://localhost:8184}
     chat: ${URL_CHAT_BS:http://localhost:8185}
-  correo.remitente: ${MAIL_FROM:no-responder@licitawatch.cl}
+  correo.remitente: ${MAIL_FROM:licitawatch@gmail.com}   # casilla oficial del proyecto
   correo.activo: ${MAIL_ACTIVO:false}      # false = el correo se registra en el log (modo desarrollo)
-spring.mail:
-  host: ${SMTP_HOST:localhost}
-  port: ${SMTP_PORT:1025}
-  username: ${SMTP_USER:}
+spring.mail:                               # Gmail de LicitaWatch; la contraseña de aplicación va solo en correo.env (SMTP_PASS)
+  host: ${SMTP_HOST:smtp.gmail.com}
+  port: ${SMTP_PORT:587}
+  username: ${SMTP_USER:licitawatch@gmail.com}
   password: ${SMTP_PASS:}
   default-encoding: UTF-8
-  properties:                                  # Gmail/Outlook: SMTP_AUTH=true y SMTP_STARTTLS=true (puerto 587)
-    mail.smtp.auth: ${SMTP_AUTH:false}
-    mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
-    mail.smtp.starttls.required: ${SMTP_STARTTLS:false}
+  properties:
+    mail.smtp.auth: ${SMTP_AUTH:true}
+    mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
+    mail.smtp.starttls.required: ${SMTP_STARTTLS:true}
     mail.smtp.connectiontimeout: 10000
     mail.smtp.timeout: 10000
     mail.smtp.writetimeout: 10000

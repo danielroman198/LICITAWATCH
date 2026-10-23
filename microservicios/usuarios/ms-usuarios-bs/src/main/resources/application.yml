@@ -16,5 +16,5 @@ lw:
     modo: ${SII_MODO:stub}            # stub = valida dígito verificador y devuelve datos de prueba; http = consulta servicio externo
     url: ${SII_URL:https://www4.sii.cl/consultaestadosinsulta}
     api-key: ${SII_API_KEY:}
-  correo.remitente: ${MAIL_FROM:no-responder@licitawatch.cl}
+  correo.remitente: ${MAIL_FROM:licitawatch@gmail.com}
   app.url: ${APP_URL:http://localhost:5173}
